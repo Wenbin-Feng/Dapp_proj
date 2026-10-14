@@ -9,11 +9,15 @@ export function verifiedWalletAddress(user: User): string {
   // getUser() supplies server-verified identities. user_metadata is user-editable.
   const addresses = new Set(
     (user.identities || []).flatMap((identity) => {
-      const data = identity.identity_data;
+      // Supabase nests verified Web3 claims inside identity_data.custom_claims.
+      const data = identity.identity_data?.custom_claims;
       if (
         identity.provider !== "web3" ||
         identity.user_id !== user.id ||
-        data?.chain !== "ethereum"
+        data === null ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        data.chain !== "ethereum"
       )
         return [];
       return typeof data.address === "string" &&

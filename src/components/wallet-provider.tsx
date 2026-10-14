@@ -11,8 +11,9 @@ import {
 } from "react";
 import type { EthereumWallet, SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import type { MeData, Profile } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
+import { fetchMe } from "@/lib/wallet-session";
 
 type EthereumProvider = EthereumWallet & {
   isMetaMask?: boolean;
@@ -52,21 +53,6 @@ function messageFor(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Wallet sign-in failed. Please try again.";
-}
-
-async function fetchMe(): Promise<MeData | null> {
-  const response = await fetch("/api/me", {
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-  if (response.status === 401) return null;
-  const body = await response.json();
-  if (!response.ok)
-    throw new Error(
-      body.error?.message ||
-        "Your account could not be loaded. Please try again.",
-    );
-  return body.data as MeData;
 }
 
 export function WalletProvider({ children }: { children: ReactNode }) {
