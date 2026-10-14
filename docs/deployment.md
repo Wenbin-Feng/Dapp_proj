@@ -18,7 +18,7 @@
 | Build Command | `npm run build` |
 | Output Directory | 保持 Next.js 默认值 |
 
-Production Branch 位于项目 **Settings → Git**；Node.js 位于 **Settings → Build and Deployment**。本仓库的 `vercel.json` 使用 `git.deploymentEnabled: false` 关闭 Git 集成的自动部署，后续发布统一由 GitHub Actions 驱动，确保测试通过后才上线。如果导入项目的流程执行了首次部署，仍需要完成下面的配置并运行一次 Actions，以验证生产流水线。
+导入页面显示 `main` 时，可先保持该分支完成项目创建，再到项目 **Settings → Environments → Production → Branch Tracking**，将分支名设为 `release` 并点击 **Save**。Node.js 位于 **Settings → Build and Deployment**。本仓库的 `vercel.json` 使用 `git.deploymentEnabled: false` 关闭 Git 集成的自动部署，后续发布统一由 GitHub Actions 驱动，确保测试通过后才上线。如果导入项目的流程执行了首次部署，仍需要完成下面的配置并运行一次 Actions，以验证生产流水线。
 
 ## 2. 配置 Vercel Production 环境变量
 
@@ -93,6 +93,7 @@ git push origin release
 ## 官方资料
 
 - [Vercel：GitHub Actions 部署](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)
+- [Vercel：设置生产分支](https://vercel.com/kb/guide/can-i-use-a-non-default-branch-for-production)
 - [GitHub：部署并发与排队](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
 - [Vercel：关闭 Git 自动部署](https://vercel.com/docs/project-configuration/git-configuration)
 - [Vercel：环境变量](https://vercel.com/docs/environment-variables)
