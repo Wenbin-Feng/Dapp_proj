@@ -34,6 +34,10 @@
 
 `NEXT_PUBLIC_` 的两项认证配置在构建时进入客户端包，必须在执行生产构建前配置正确。`SUPABASE_SECRET_KEY` 仅由生产服务端读取，不使用 `NEXT_PUBLIC_` 前缀，也不需要重复保存到 GitHub。它可以作为 Vercel 的 Secret 类型保存，生产函数运行时会得到该值。流水线不会打印拉取的环境变量，也不会上传 `.vercel/` 或环境文件作为 artifact。
 
+通过 `.env` 导入时，检查三项 `NEXT_PUBLIC_*` 变量均为 **Config**，避免被标记为 Sensitive Secret 后无法供 CLI 的预构建读取。`SUPABASE_SECRET_KEY` 保持 Sensitive Secret，部署时由 Vercel 注入服务端运行环境。
+
+本地 `.env.prod` 仅用于手动导入变量。Git 的忽略规则不替代 Vercel CLI 上传规则；仓库的 `.vercelignore` 单独排除真实环境文件和本地测试产物，只保留不含凭据的 `.env.example`。线上构建使用 Vercel 项目配置的变量。
+
 当前代码不读取 `NEXT_PUBLIC_APP_URL` 或 `SUPABASE_JWKS_URL`，两者不是部署必填项。二维码链接和 MetaMask 登录消息使用用户实际访问的域名。修改 Vercel 环境变量后，需要重新部署才能生效。
 
 首次上线使用 Supabase 新创建或轮换后的服务端 secret key，更新本地私有环境文件及 Vercel Production；凭据不应从聊天记录复制到仓库。
