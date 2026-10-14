@@ -1,4 +1,4 @@
-# Origin business API
+# group project business API
 
 All responses use `{ "data": value }`. Errors use `{ "error": { "code": "...", "message": "..." } }` with the corresponding HTTP status. Responses are never cached. JSON write requests require a same-origin `Origin` header and `Content-Type: application/json`.
 

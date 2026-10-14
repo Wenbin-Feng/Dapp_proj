@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowUpRight,
   Box,
   Check,
   ChevronRight,
   CircleAlert,
-  Fingerprint,
   LoaderCircle,
   ShieldCheck,
 } from "lucide-react";
@@ -20,18 +20,27 @@ import {
   WARRANTY_LABELS,
 } from "@/lib/format";
 import type { Product, PublicProductDetail } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
+
+export function BrandMark({ className = "" }: { className?: string }) {
+  return (
+    <span className={`brand-mark ${className}`} aria-hidden="true">
+      <Image
+        src={BRAND.logoPath}
+        width={32}
+        height={32}
+        alt=""
+        loading="eager"
+      />
+    </span>
+  );
+}
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="brand" aria-label="Origin home">
-      <span className="brand-mark">
-        <Fingerprint size={25} aria-hidden="true" />
-      </span>
-      {!compact && (
-        <span>
-          origin<span className="brand-period">.</span>
-        </span>
-      )}
+    <Link href="/" className="brand" aria-label={`${BRAND.name} home`}>
+      <BrandMark />
+      {!compact && <span className="brand-wordmark">{BRAND.name}</span>}
     </Link>
   );
 }

@@ -12,6 +12,7 @@ import {
 import type { EthereumWallet, SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { MeData, Profile } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 
 type EthereumProvider = EthereumWallet & {
   isMetaMask?: boolean;
@@ -210,7 +211,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         chain: "ethereum",
         wallet,
         statement:
-          "Sign in to Origin to manage your product passports. This request does not send a transaction.",
+          `Sign in to ${BRAND.name} to manage your product passports. This request does not send a transaction.`,
       });
       if (loginError) throw loginError;
       if (!alive.current || currentEpoch !== epoch.current) {

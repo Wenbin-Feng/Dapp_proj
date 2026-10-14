@@ -18,6 +18,7 @@ import {
 import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 import { Loading, Logo } from "./ui";
 
 const links = [
@@ -135,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="app-content">{children}</div>
         <footer className="app-footer">
-          <span>Origin · Product provenance, made clear.</span>
+          <span>{BRAND.name} · Product provenance, made clear.</span>
           <Link href="/verify">
             Public verification <ArrowUpRight size={13} aria-hidden="true" />
           </Link>

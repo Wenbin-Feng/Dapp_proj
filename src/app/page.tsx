@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import { Logo, PublicHeader } from "@/components/ui";
+import { BrandMark, Logo, PublicHeader } from "@/components/ui";
+import { BRAND } from "@/lib/brand";
 const features = [
   {
     icon: Fingerprint,
@@ -89,8 +90,11 @@ export default function Home() {
             <span className="illustration-label">Passport illustration</span>
             <div className="illustration-card">
               <div className="illustration-card-top">
-                <span>Origin / Digital passport</span>
-                <Fingerprint size={23} aria-hidden="true" />
+                <div className="illustration-brand-title">
+                  <strong>{BRAND.name}</strong>
+                  <span>Digital passport</span>
+                </div>
+                <BrandMark className="brand-mark-small" />
               </div>
               <div className="product-art">
                 <svg viewBox="0 0 180 180" fill="none" aria-hidden="true">

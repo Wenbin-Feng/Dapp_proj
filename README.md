@@ -1,4 +1,4 @@
-# Origin — Product Provenance & Warranty
+# group project — Product Provenance & Warranty
 
 An English, dark-themed product passport application for COMP5565. Four wallet roles cover product registration, retail delivery, resale, and warranty service.
 

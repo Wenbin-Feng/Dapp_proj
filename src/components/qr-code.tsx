@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Copy, Check, Download, QrCode } from "lucide-react";
+import { BRAND } from "@/lib/brand";
 export function ProductQr({ productId }: { productId: string }) {
   const [image, setImage] = useState("");
   const [url, setUrl] = useState("");
@@ -76,7 +77,7 @@ export function ProductQr({ productId }: { productId: string }) {
           <a
             className="button button-ghost button-small"
             href={image}
-            download={`origin-${productId}.png`}
+            download={`${BRAND.slug}-${productId}.png`}
           >
             <Download size={16} aria-hidden="true" />
             QR

@@ -30,6 +30,7 @@ import { ProductQr } from "@/components/qr-code";
 import { productGateway } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
 import type { PublicProductDetail } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 function extractQuery(input: string) {
   const value = input.trim();
   if (/^https?:\/\//i.test(value) || value.startsWith("/verify?")) {
@@ -58,7 +59,7 @@ export default function Verify() {
     setError(null);
     if (!normalized || normalized.length > 120) {
       setError(
-        "Enter a product ID, serial number or an Origin verification link.",
+        `Enter a product ID, serial number or a ${BRAND.name} verification link.`,
       );
       return;
     }
