@@ -218,7 +218,7 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
         services,
       };
     }
-    async function participantPage(who: number) {
+    async function participantPage(who: number, waitForDiscovery = false) {
       const context = await browser.newContext();
       contexts.push(context);
       const page = await context.newPage();
@@ -233,7 +233,7 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
         },
       );
       await page.addInitScript(
-        ({ account }) => {
+        ({ account, waitForDiscovery }) => {
           const listeners = new Map<
             string,
             Set<(...args: unknown[]) => void>
@@ -270,9 +270,19 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
               listeners.get(event)?.delete(callback);
             },
           };
-          Object.defineProperty(window, "ethereum", { value: provider });
+          if (waitForDiscovery) {
+            window.addEventListener("product-test-provider-ready", () =>
+              window.dispatchEvent(
+                new CustomEvent("eip6963:announceProvider", {
+                  detail: { info: { rdns: "io.metamask" }, provider },
+                }),
+              ),
+            );
+          } else {
+            Object.defineProperty(window, "ethereum", { value: provider });
+          }
         },
-        { account: addresses[who] },
+        { account: addresses[who], waitForDiscovery },
       );
       await page.route("**/api/**", async (route) => {
         try {
@@ -363,11 +373,19 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
       });
       return page;
     }
-    const manufacturer = await participantPage(0),
+    const manufacturer = await participantPage(0, true),
       retailer = await participantPage(1),
       buyer = await participantPage(2),
       center = await participantPage(4);
     await manufacturer.goto("/products/new");
+    await expect(
+      manufacturer.getByRole("button", {
+        name: "Activate Manufacturer", exact: true,
+      }),
+    ).toBeDisabled();
+    await manufacturer.evaluate(() =>
+      window.dispatchEvent(new Event("product-test-provider-ready")),
+    );
     await manufacturer
       .getByRole("button", { name: "Activate Manufacturer", exact: true })
       .click();

@@ -78,7 +78,9 @@ export function ProductChainStatus() {
           {role === 0 && (
             <button
               className="button button-small"
-              disabled={chain.busy}
+              disabled={
+                chain.busy || !chain.client || !wallet.provider || !wallet.address
+              }
               onClick={() =>
                 void chain
                   .invoke(
