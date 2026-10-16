@@ -572,6 +572,10 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
       buyer.getByText("Battery replaced and charging tested.", { exact: true }),
     ).toBeVisible();
     await buyer.setViewportSize({ width: 390, height: 844 });
+    // Exercise Linux CI's Arial-compatible fallback metrics on Windows too.
+    await buyer.addStyleTag({
+      content: "body { font-family: Arial, sans-serif; }",
+    });
     await expect(buyer.locator(".sidebar")).toHaveCSS(
       "transform",
       "matrix(1, 0, 0, 1, -270, 0)",
@@ -584,10 +588,8 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
     await expect.poll(() => buyer.evaluate(() => window.scrollY)).toBe(0);
     await expect.poll(() => buyer.locator(".mobile-header").evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
     expect(
-      await buyer.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+      await buyer.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
     await buyer.screenshot({
       path: "test-results/product-settlement-mobile.png",
       fullPage: false,
