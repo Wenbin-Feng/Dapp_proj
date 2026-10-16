@@ -21,6 +21,7 @@ export interface Profile {
   created_at: string;
 }
 export interface Product {
+  chain?: { transaction_hash: string };
   id: string;
   serial_number: string;
   model: string;
@@ -39,6 +40,10 @@ export interface Product {
 }
 export type TransferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 export interface Transfer {
+  price_pdc?: string;
+  expires_at?: string | null;
+  request_hash?: string;
+  transaction_hash?: string;
   id: string;
   product_id: string;
   from_user_id: string;
@@ -69,6 +74,8 @@ export interface Claim {
   customer_wallet?: string;
 }
 export interface OwnershipEvent {
+  transaction_hash?: string;
+  price_pdc?: string;
   id: string;
   product_id: string;
   from_wallet: string | null;
@@ -119,6 +126,8 @@ export interface PublicProductDetail {
   max_claims: number;
   claims_used: number;
   history: {
+    transaction_hash?: string;
+    price_pdc?: string;
     id: string;
     from_display: string | null;
     to_display: string;

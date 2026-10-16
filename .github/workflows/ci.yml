@@ -48,11 +48,11 @@ jobs:
       - name: Check TypeScript
         run: npm run typecheck
 
-      - name: Run unit and database tests
-        run: npm test
-
       - name: Build and test contracts on Hardhat
         run: npm run contracts:test
+
+      - name: Run unit and database tests
+        run: npm test
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

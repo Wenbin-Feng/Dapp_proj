@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { readJson, route } from "@/lib/http";
 import { businessRpc, relatedClaims } from "@/lib/products-server";
 import type { Claim } from "@/lib/types";
+import { requireDatabaseProducts } from "@/lib/chain/products-server";
 
 export const GET = route(async () => {
   const { db, userId } = await requireAuth();
@@ -11,6 +12,7 @@ export const GET = route(async () => {
 
 export const POST = route(async (request) => {
   const { db, userId } = await requireAuth({ roles: ["customer"] });
+  requireDatabaseProducts();
   const input = await readJson(
     request,
     z

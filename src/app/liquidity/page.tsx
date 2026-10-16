@@ -32,6 +32,7 @@ type Quote = {
   }[];
 };
 export default function LiquidityPage() {
+  const { address } = useWallet();
   return (
     <AppShell>
       <PageTitle
@@ -39,7 +40,7 @@ export default function LiquidityPage() {
         description="Deposit both demo currencies to receive LP tokens, or redeem your LP share."
       />
       <ChainGate>
-        <Liquidity />
+        <Liquidity key={address} />
       </ChainGate>
     </AppShell>
   );

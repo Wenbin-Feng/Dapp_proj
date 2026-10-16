@@ -67,3 +67,6 @@ Exact allowances are preferred; revocation is a separate on-chain operation.
 Sources: [OpenZeppelin ERC20](https://docs.openzeppelin.com/contracts/5.x/erc20),
 [Hardhat](https://hardhat.org/docs/getting-started),
 [viem wallet clients](https://viem.sh/docs/clients/wallet).
+
+For PDC product purchases, independent chain-mode setup, SQL and event-index
+operations, see [product settlement](product-settlement.md).

@@ -19,6 +19,7 @@ import { tokenAddress, type DemoSymbol } from "@/lib/chain/config";
 import { transactionError } from "@/lib/chain/transactions";
 
 export default function WalletPage() {
+  const { address } = useWallet();
   return (
     <AppShell>
       <PageTitle
@@ -26,7 +27,7 @@ export default function WalletPage() {
         description="Hold and transfer the project's fixed-supply test currencies."
       />
       <ChainGate>
-        <WalletContents />
+        <WalletContents key={address} />
       </ChainGate>
     </AppShell>
   );

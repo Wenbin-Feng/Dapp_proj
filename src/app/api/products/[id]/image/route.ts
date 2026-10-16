@@ -4,6 +4,10 @@ import { ApiError, route } from "@/lib/http";
 import { normalizeProductImage } from "@/lib/image-server";
 import { IMAGE_LIMITS } from "@/lib/image-compression";
 import { z } from "zod";
+import {
+  chainProductsEnabled,
+  chainImageProduct,
+} from "@/lib/chain/products-server";
 export const runtime = "nodejs";
 export async function POST(
   request: Request,
@@ -13,12 +17,19 @@ export async function POST(
     const { id } = await context.params;
     if (!z.uuid().safeParse(id).success)
       throw new ApiError(400, "INVALID_ID", "Invalid product ID.");
-    const { db, userId } = await requireAuth({ roles: ["manufacturer"] });
-    const { data: product, error: readError } = await db
-      .from("dapp_products")
-      .select("id,manufacturer_id,image_path")
-      .eq("id", id)
-      .maybeSingle();
+    const { db, userId, walletAddress } = await requireAuth({
+      roles: ["manufacturer"],
+    });
+    const chainRecord = chainProductsEnabled()
+      ? await chainImageProduct(db, walletAddress, userId, id)
+      : null;
+    const { data: product, error: readError } = chainRecord
+      ? { data: chainRecord, error: null }
+      : await db
+          .from("dapp_products")
+          .select("id,manufacturer_id,image_path")
+          .eq("id", id)
+          .maybeSingle();
     if (readError)
       throw new ApiError(
         503,
@@ -108,16 +119,22 @@ export async function POST(
         "UPLOAD_FAILED",
         "Image upload failed. Your previous image is unchanged; please retry.",
       );
-    let update = db
-      .from("dapp_products")
-      .update({ image_path: newPath })
-      .eq("id", id)
-      .eq("manufacturer_id", userId);
+    let update = chainRecord
+      ? db
+          .from("dapp_demo_product_images")
+          .update({ image_path: newPath })
+          .match(chainRecord.scope)
+          .eq("product_id", id)
+      : db
+          .from("dapp_products")
+          .update({ image_path: newPath })
+          .eq("id", id)
+          .eq("manufacturer_id", userId);
     update = product.image_path
       ? update.eq("image_path", product.image_path)
       : update.is("image_path", null);
     const { data: updated, error: updateError } = await update
-      .select("id")
+      .select(chainRecord ? "product_id" : "id")
       .maybeSingle();
     if (updateError || !updated) {
       await storage.remove([newPath]);

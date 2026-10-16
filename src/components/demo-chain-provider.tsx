@@ -24,17 +24,12 @@ import { demoChain, type DemoConfig } from "@/lib/chain/config";
 import {
   assertWalletContext,
   transactionError,
+  confirmTransaction,
+  ReceiptRejectedError,
+  type TransactionEntry,
 } from "@/lib/chain/transactions";
 import { useWallet } from "./wallet-provider";
 
-export type TransactionEntry = {
-  hash: Hash;
-  account: Address;
-  chainId: number;
-  label: string;
-  status: "pending" | "confirming" | "confirmed" | "failed";
-  createdAt: string;
-};
 export type ContractCall = {
   address: Address;
   abi: Abi;
@@ -48,6 +43,7 @@ type Context = {
   client: Client | null;
   loading: boolean;
   error: string | null;
+  configError: string | null;
   busy: boolean;
   message: string | null;
   entries: TransactionEntry[];
@@ -86,6 +82,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [walletRevision, setWalletRevision] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -120,7 +117,10 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
           );
       })
       .catch((reason) => {
-        if (active) setError(transactionError(reason));
+        if (active) {
+          setError(transactionError(reason));
+          setConfigError(transactionError(reason));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -150,36 +150,8 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const confirm = useCallback(
-    async (entry: TransactionEntry, rpc: Client) => {
-      let current = entry;
-      let replacedWithDifferentOperation = false;
-      const receipt = await rpc.waitForTransactionReceipt({
-        hash: entry.hash,
-        confirmations: entry.chainId === 31337 ? 1 : 2,
-        timeout: 120_000,
-        onReplaced: ({ reason, transactionReceipt }) => {
-          record({ ...current, status: "failed" });
-          current = {
-            ...current,
-            hash: transactionReceipt.transactionHash,
-            status: "pending",
-          };
-          if (reason !== "repriced") {
-            replacedWithDifferentOperation = true;
-            return;
-          }
-          record(current);
-        },
-      });
-      if (replacedWithDifferentOperation)
-        throw new Error("The original transaction was cancelled or replaced by a different operation. Check the replacement in your wallet; the original operation is not confirmed.");
-      if (receipt.status !== "success") {
-        record({ ...current, status: "failed" });
-        throw new Error("The transaction reverted. Gas may have been spent.");
-      }
-      record({ ...current, status: "confirmed" });
-      return current.hash;
-    },
+    (entry: TransactionEntry, rpc: Client) =>
+      confirmTransaction(rpc, entry, record),
     [record],
   );
 
@@ -197,6 +169,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
       setBusy(true);
       setError(null);
       let entry: TransactionEntry | undefined;
+      let confirmed = false;
       const account = wallet.address as Address;
       const provider = wallet.provider as EIP1193Provider;
       try {
@@ -230,16 +203,17 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
         record(entry);
         setMessage(`${label} submitted. Waiting for a successful receipt…`);
         const finalHash = await confirm(entry, client);
-        setMessage(
-          identity.current?.toLowerCase() === account.toLowerCase()
-            ? `${label} confirmed on chain.`
-            : `${label} confirmed for the previous wallet. Open that wallet's history to review it.`,
-        );
+        confirmed = true;
+        if (identity.current?.toLowerCase() !== account.toLowerCase())
+          throw new Error(
+            `Transaction ${finalHash} confirmed for the previous wallet. Connect that wallet and sync its records before continuing.`,
+          );
+        setMessage(`${label} confirmed on chain.`);
         return finalHash;
       } catch (reason) {
         const detail = transactionError(reason);
         setError(
-          entry
+          entry && !confirmed && !(reason instanceof ReceiptRejectedError)
             ? `${detail} A submitted transaction can still confirm; check its receipt before trying again.`
             : detail,
         );
@@ -283,6 +257,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
         client,
         loading,
         error,
+        configError,
         busy,
         message,
         entries,

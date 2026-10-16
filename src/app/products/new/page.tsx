@@ -6,8 +6,9 @@ import { ArrowLeft, ArrowRight, Fingerprint, LoaderCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useWallet } from "@/components/wallet-provider";
 import { EmptyState, ErrorNotice, PageTitle } from "@/components/ui";
-import { productGateway } from "@/lib/api-client";
+import { useProductGateway } from "@/components/product-gateway";
 export default function NewProduct() {
+  const productGateway = useProductGateway();
   const { profile } = useWallet();
   const router = useRouter();
   const [model, setModel] = useState("");

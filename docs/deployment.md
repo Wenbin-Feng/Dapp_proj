@@ -82,17 +82,20 @@ GitHub **Actions → Deploy production → Run workflow**，选择 **release** �
 日常流程：
 
 ```sh
-git switch main
-git switch -c feature/your-change
-# 修改、提交并通过检查后，合并到生产分支。
+git fetch origin
 git switch release
-git merge feature/your-change
-git push origin release
+git pull --ff-only origin release
+git switch -c dev/your-change
+# 修改、提交并完成本地检查。
+git push -u origin dev/your-change
+# 在 GitHub 提交目标为 release 的 PR，由团队在 CI 通过后合并。
 ```
 
-也可以在 GitHub 创建目标为 `release` 的 PR，检查通过后合并。流水线按生产环境串行运行，不取消正在执行的部署，最多保留 100 个等待任务。需要重新部署已有版本时，在 Actions 手动选择 `release`；需要回退代码时，将回退提交合并/推送到 `release`。
+按团队约定使用 `dev/<功能点>` 并提交目标为 `release` 的 PR。流水线按生产环境串行运行，不取消正在执行的部署，最多保留 100 个等待任务。需要重新部署已有版本时，在 Actions 手动选择 `release`；需要回退代码时，将回退提交通过 PR 合入 `release`。
 
 生产发布后，用真实 MetaMask 钱包检查登录、首次资料填写、产品登记、图片上传、转让和保修。CI 浏览器测试使用接口 fixtures，不替代真实钱包及 Supabase 联调。
+
+代币和商品合约的发布独立于网站 CI；网站更新不会重新发行代币。可选链上模式的部署、SQL 手工交付、索引恢复和验收步骤见 [商品结算与运维](product-settlement.md)。云端 SQL 由指定团队成员在 issue 中核对完整语句后执行；默认保留 `PRODUCT_BACKEND=database`，全部准备好再切换。
 
 ## 官方资料
 

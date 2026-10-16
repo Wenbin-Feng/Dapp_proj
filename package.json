@@ -18,11 +18,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "contracts:build": "hardhat build",
+    "contracts:build": "hardhat build && node scripts/export-product-abi.mjs",
     "contracts:test": "npm run contracts:build && node --test contracts/test/*.test.mjs",
     "chain:node": "hardhat node --hostname 127.0.0.1",
     "chain:deploy-tokens": "npm run contracts:build && node scripts/deploy-tokens.mjs",
-    "chain:deploy-amm": "node scripts/deploy-amm.mjs"
+    "chain:deploy-amm": "node scripts/deploy-amm.mjs",
+    "chain:deploy-products": "npm run contracts:build && node scripts/deploy-products.mjs",
+    "chain:sync": "node scripts/sync-products.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

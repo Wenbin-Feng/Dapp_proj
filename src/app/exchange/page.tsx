@@ -32,6 +32,7 @@ type Quote = {
   impact: bigint;
 };
 export default function ExchangePage() {
+  const { address } = useWallet();
   return (
     <AppShell>
       <PageTitle
@@ -39,7 +40,7 @@ export default function ExchangePage() {
         description="Swap PDC and PDQ at the pool's current exchange rate."
       />
       <ChainGate>
-        <Exchange />
+        <Exchange key={address} />
       </ChainGate>
     </AppShell>
   );

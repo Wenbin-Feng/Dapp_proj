@@ -1,5 +1,11 @@
 # group project business API
 
+The HTTP write interfaces below describe the default database backend. With
+`PRODUCT_BACKEND=chain`, reads use the independent confirmed event model and
+legacy business writes return `409 WALLET_TRANSACTION_REQUIRED`; the existing UI
+uses the wallet adapter instead. Images remain authenticated off-chain uploads.
+See [product settlement](product-settlement.md) for chain operations and recovery.
+
 All responses use `{ "data": value }`. Errors use `{ "error": { "code": "...", "message": "..." } }` with the corresponding HTTP status. Responses are never cached. JSON write requests require a same-origin `Origin` header and `Content-Type: application/json`.
 
 Except for `/api/verify`, business endpoints require a server-verified Supabase Ethereum Web3 session and a completed profile. Actor IDs and roles come from the verified session; clients cannot submit them. The service-role client stays in server-only modules. All six `dapp_*` business tables have RLS enabled and no direct permissions for anonymous/authenticated clients. All eight business RPCs, including the authorized repair-record query, are executable only by the backend service role.

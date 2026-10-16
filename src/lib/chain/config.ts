@@ -6,6 +6,12 @@ import {
   type Address,
 } from "viem";
 import { z } from "zod";
+export const chainRoles = {
+  manufacturer: 1,
+  retailer: 2,
+  customer: 3,
+  service_center: 4,
+} as const;
 
 const address = z
   .string()
@@ -28,6 +34,7 @@ export const deploymentSchema = z
     pair: address.optional(),
     weth: address.optional(),
     products: address.optional(),
+    productsFromBlock: z.string().regex(/^\d+$/).optional(),
   })
   .refine((value) => {
     const contracts = [

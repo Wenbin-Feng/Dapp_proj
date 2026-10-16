@@ -12,7 +12,13 @@ export async function getDemoConfig(): Promise<DemoConfig | null> {
     process.env.NODE_ENV !== "production"
   )
     source = await readFile(process.env.DEMO_DEPLOYMENT_FILE, "utf8");
-  if (!source) return null;
+  if (!source) {
+    if (process.env.PRODUCT_BACKEND === "chain")
+      throw new Error(
+        "Configure the product deployment before enabling chain mode",
+      );
+    return null;
+  }
   const deployment = deploymentSchema.parse(JSON.parse(source));
   const rpcUrl =
     process.env.DEMO_PUBLIC_RPC_URL ||

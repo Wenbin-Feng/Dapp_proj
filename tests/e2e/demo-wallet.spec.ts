@@ -72,6 +72,15 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
     );
     await page.addInitScript(
       ({ account }) => {
+        let selected: string = account;
+        const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+        window.addEventListener("demo-test-accounts", (event) => {
+          const accounts = (event as CustomEvent<string[]>).detail;
+          selected = accounts[0];
+          listeners
+            .get("accountsChanged")
+            ?.forEach((listener) => listener(accounts));
+        });
         const provider = {
           isMetaMask: true,
           async request({
@@ -82,7 +91,7 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
             params?: unknown[];
           }) {
             if (["eth_accounts", "eth_requestAccounts"].includes(method))
-              return [account];
+              return [selected];
             const response = await (
               window as unknown as {
                 demoWalletRpc: (
@@ -100,8 +109,17 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
               });
             return response.result;
           },
-          on() {},
-          removeListener() {},
+          on(event: string, listener: (...args: unknown[]) => void) {
+            const list = listeners.get(event) || new Set();
+            list.add(listener);
+            listeners.set(event, list);
+          },
+          removeListener(
+            event: string,
+            listener: (...args: unknown[]) => void,
+          ) {
+            listeners.get(event)?.delete(listener);
+          },
         };
         Object.defineProperty(window, "ethereum", {
           value: provider,
@@ -359,6 +377,94 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
       path: "test-results/demo-liquidity-mobile.png",
       fullPage: true,
     });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/wallet");
+    await expect(
+      page.getByRole("button", { name: "Send PDC", exact: true }),
+    ).toBeEnabled();
+    await client.request({
+      method: "evm_setAutomine",
+      params: [false],
+    } as never);
+    await page.getByLabel("Recipient address").fill(accounts[1]);
+    await page.getByLabel("Amount", { exact: true }).fill("1");
+    await page.getByRole("button", { name: "Send PDC", exact: true }).click();
+    const pendingHash = async () =>
+      page.evaluate(
+        () =>
+          (
+            JSON.parse(
+              localStorage.getItem("dapp-demo-transactions-v1") || "[]",
+            ) as { hash: string; status: string }[]
+          ).find((entry) => entry.status === "pending")?.hash,
+      );
+    await expect.poll(pendingHash).toBeTruthy();
+    const pending = await pendingHash();
+    await page.reload();
+    await expect(
+      page.getByText("Transfer PDC · pending", { exact: true }),
+    ).toBeVisible();
+    await client.request({ method: "evm_mine" } as never);
+    await client.request({
+      method: "evm_setAutomine",
+      params: [true],
+    } as never);
+    await page
+      .getByRole("button", { name: "Check receipt", exact: true })
+      .click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (hash) =>
+            (
+              JSON.parse(
+                localStorage.getItem("dapp-demo-transactions-v1") || "[]",
+              ) as { hash: string; status: string }[]
+            ).find((entry) => entry.hash === hash)?.status,
+          pending,
+        ),
+      )
+      .toBe("confirmed");
+    // A pending transaction may confirm after the account has changed, but the
+    // previous wallet's balances or business success must not become the new session's state.
+    await client.request({
+      method: "evm_setAutomine",
+      params: [false],
+    } as never);
+    await page.getByLabel("Recipient address").fill(accounts[1]);
+    await page.getByLabel("Amount", { exact: true }).fill("1");
+    await page.getByRole("button", { name: "Send PDC", exact: true }).click();
+    await expect.poll(pendingHash).toBeTruthy();
+    const previousWalletHash = await pendingHash();
+    await page.evaluate(
+      (account) =>
+        window.dispatchEvent(
+          new CustomEvent("demo-test-accounts", { detail: [account] }),
+        ),
+      accounts[1],
+    );
+    await expect(page).toHaveURL(/\/login$/);
+    await client.request({ method: "evm_mine" } as never);
+    await client.request({
+      method: "evm_setAutomine",
+      params: [true],
+    } as never);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (hash) =>
+            (
+              JSON.parse(
+                localStorage.getItem("dapp-demo-transactions-v1") || "[]",
+              ) as { hash: string; status: string }[]
+            ).find((entry) => entry.hash === hash)?.status,
+          previousWalletHash,
+        ),
+      )
+      .toBe("confirmed");
+    await expect(
+      page.getByRole("heading", { name: "Your balances" }),
+    ).toHaveCount(0);
   } finally {
     await server.close();
   }

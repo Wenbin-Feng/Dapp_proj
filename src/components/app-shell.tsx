@@ -23,6 +23,7 @@ import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
 import { Loading, Logo } from "./ui";
+import { ProductChainStatus } from "./product-chain-status";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -140,7 +141,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             {shortWallet(wallet.profile.wallet_address)}
           </span>
         </div>
-        <div className="app-content">{children}</div>
+        <div className="app-content">
+          {!["/wallet", "/exchange", "/liquidity"].includes(pathname) && (
+            <ProductChainStatus key={wallet.profile.id} />
+          )}
+          {children}
+        </div>
         <footer className="app-footer">
           <span>{BRAND.name} · Product provenance, made clear.</span>
           <Link href="/verify">
