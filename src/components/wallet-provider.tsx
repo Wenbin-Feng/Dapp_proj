@@ -20,6 +20,7 @@ type EthereumProvider = EthereumWallet & {
   providers?: EthereumProvider[];
 };
 interface WalletContextValue {
+  provider: EthereumProvider | null;
   profile: Profile | null;
   loading: boolean;
   connecting: boolean;
@@ -326,6 +327,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <WalletContext.Provider
       value={{
+        provider,
         profile,
         loading,
         connecting,

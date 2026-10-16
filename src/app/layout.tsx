@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WalletProvider } from "@/components/wallet-provider";
+import { DemoChainProvider } from "@/components/demo-chain-provider";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RootLayout({
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
-        <WalletProvider>{children}</WalletProvider>
+        <WalletProvider><DemoChainProvider>{children}</DemoChainProvider></WalletProvider>
       </body>
     </html>
   );

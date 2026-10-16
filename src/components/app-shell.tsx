@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   UserRound,
   X,
+  Wallet,
 } from "lucide-react";
 import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
@@ -25,6 +26,7 @@ const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
+  { href: "/wallet", label: "Demo wallet", icon: Wallet },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
   { href: "/profile", label: "My profile", icon: UserRound },
 ];
