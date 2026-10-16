@@ -139,7 +139,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   const confirm = useCallback(
     async (entry: TransactionEntry, rpc: Client) => {
       let current = entry;
-      let cancelled = false;
+      let replacedWithDifferentOperation = false;
       const receipt = await rpc.waitForTransactionReceipt({
         hash: entry.hash,
         confirmations: entry.chainId === 31337 ? 1 : 2,
@@ -151,15 +151,15 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
             hash: transactionReceipt.transactionHash,
             status: "pending",
           };
-          if (reason === "cancelled") {
-            cancelled = true;
+          if (reason !== "repriced") {
+            replacedWithDifferentOperation = true;
             return;
           }
           record(current);
         },
       });
-      if (cancelled)
-        throw new Error("The transaction was cancelled in the wallet.");
+      if (replacedWithDifferentOperation)
+        throw new Error("The original transaction was cancelled or replaced by a different operation. Check the replacement in your wallet; the original operation is not confirmed.");
       if (receipt.status !== "success") {
         record({ ...current, status: "failed" });
         throw new Error("The transaction reverted. Gas may have been spent.");
