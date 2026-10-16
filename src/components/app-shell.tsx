@@ -15,6 +15,8 @@ import {
   UserRound,
   X,
   Wallet,
+  Droplets,
+  RefreshCw,
 } from "lucide-react";
 import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
@@ -27,6 +29,8 @@ const links = [
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
   { href: "/wallet", label: "Demo wallet", icon: Wallet },
+  { href: "/exchange", label: "Exchange", icon: RefreshCw },
+  { href: "/liquidity", label: "Liquidity", icon: Droplets },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
   { href: "/profile", label: "My profile", icon: UserRound },
 ];

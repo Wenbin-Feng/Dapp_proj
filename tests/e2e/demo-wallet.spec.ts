@@ -10,13 +10,16 @@ import {
   http,
   erc20Abi,
   parseEther,
+  parseAbi,
+  getAddress,
+  type Abi,
   type Address,
 } from "viem";
 
-test("demo wallet cancels safely, transfers on chain and restores receipt history", async ({
+test("demo wallet and AMM execute real transfers, swaps and LP transactions", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const server = await network.createServer("hardhat", "127.0.0.1", 0);
   const { port } = await server.listen();
   const rpcUrl = `http://127.0.0.1:${port}`;
@@ -27,7 +30,10 @@ test("demo wallet cancels safely, transfers on chain and restores receipt histor
     rpcUrls: { default: { http: [rpcUrl] } },
   });
   const client = createPublicClient({ chain, transport: http(rpcUrl) });
-  const accounts = await createWalletClient({ chain, transport: http(rpcUrl) }).getAddresses();
+  const accounts = await createWalletClient({
+    chain,
+    transport: http(rpcUrl),
+  }).getAddresses();
   const signer = createWalletClient({
     account: accounts[0],
     chain,
@@ -39,6 +45,7 @@ test("demo wallet cancels safely, transfers on chain and restores receipt histor
   const tokens: Address[] = [];
   let cancelled = true;
   let submissions = 0;
+  let amm: Record<string, Address> = {};
   try {
     for (const symbol of ["PDC", "PDQ"]) {
       const receipt = await client.waitForTransactionReceipt({
@@ -127,12 +134,13 @@ test("demo wallet cancels safely, transfers on chain and restores receipt histor
           data: {
             version: "demo-v1",
             chainId: 31337,
-            pdc: tokens[0],
-            pdq: tokens[1],
+            pdc: getAddress(tokens[0]),
+            pdq: getAddress(tokens[1]),
             treasury: accounts[0],
             fromBlock: "0",
             rpcUrl,
             productBackend: "database",
+            ...amm,
           },
         },
       }),
@@ -173,7 +181,10 @@ test("demo wallet cancels safely, transfers on chain and restores receipt histor
       page.getByText("Transfer PDC · confirmed", { exact: true }),
     ).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.locator(".sidebar")).toHaveCSS("transform", "matrix(1, 0, 0, 1, -270, 0)");
+    await expect(page.locator(".sidebar")).toHaveCSS(
+      "transform",
+      "matrix(1, 0, 0, 1, -270, 0)",
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -181,6 +192,171 @@ test("demo wallet cancels safely, transfers on chain and restores receipt histor
     ).toBe(true);
     await page.screenshot({
       path: "test-results/demo-wallet-mobile.png",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    async function deployArtifact(path: string, args: readonly unknown[] = []) {
+      const artifact = JSON.parse(
+        await readFile(`node_modules/${path}`, "utf8"),
+      );
+      const receipt = await client.waitForTransactionReceipt({
+        hash: await signer.deployContract({
+          abi: artifact.abi,
+          bytecode: artifact.bytecode.startsWith("0x")
+            ? artifact.bytecode
+            : `0x${artifact.bytecode}`,
+          args,
+        }),
+      });
+      return getAddress(receipt.contractAddress!);
+    }
+    async function execute(
+      address: Address,
+      abi: Abi,
+      functionName: string,
+      args: readonly unknown[],
+    ) {
+      const { request } = await client.simulateContract({
+        address,
+        abi,
+        functionName,
+        args,
+        account: signer.account,
+      });
+      return client.waitForTransactionReceipt({
+        hash: await signer.writeContract(request),
+      });
+    }
+    const factory = await deployArtifact(
+      "@uniswap/v2-core/build/UniswapV2Factory.json",
+      [accounts[0]],
+    );
+    const weth = await deployArtifact("@uniswap/v2-periphery/build/WETH9.json");
+    const router = await deployArtifact(
+      "@uniswap/v2-periphery/build/UniswapV2Router02.json",
+      [factory, weth],
+    );
+    const factoryAbi = parseAbi([
+      "function createPair(address,address) returns (address)",
+      "function getPair(address,address) view returns (address)",
+    ]);
+    await execute(factory, factoryAbi, "createPair", tokens);
+    const pair = getAddress(
+      await client.readContract({
+        address: factory,
+        abi: factoryAbi,
+        functionName: "getPair",
+        args: [tokens[0], tokens[1]],
+      }),
+    );
+    const routerAbi = parseAbi([
+      "function addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256) returns (uint256,uint256,uint256)",
+    ]);
+    for (const token of tokens)
+      await execute(token, erc20Abi, "approve", [router, parseEther("100000")]);
+    await execute(router, routerAbi, "addLiquidity", [
+      ...tokens,
+      parseEther("100000"),
+      parseEther("100000"),
+      parseEther("100000"),
+      parseEther("100000"),
+      accounts[0],
+      (await client.getBlock()).timestamp + 600n,
+    ]);
+    amm = { factory, weth, router, pair };
+    const lpBefore = await client.readContract({
+      address: pair,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [accounts[0]],
+    });
+    await page.goto("/liquidity");
+    await page.getByLabel("PDC amount", { exact: true }).fill("100");
+    await page
+      .getByRole("button", { name: "Review liquidity", exact: true })
+      .click();
+    await page.getByRole("button", { name: /Approve 100 PDC/ }).click();
+    await page.getByRole("button", { name: /Approve 100 PDQ/ }).click();
+    await page
+      .getByRole("button", { name: "Confirm deposit", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toContainText(
+      "Add liquidity confirmed on chain",
+      { timeout: 30_000 },
+    );
+    expect(
+      await client.readContract({
+        address: pair,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [accounts[0]],
+      }),
+    ).toBe(lpBefore + parseEther("100"));
+    await page.goto("/exchange");
+    await page.getByLabel("Amount to sell").fill("1000");
+    await page
+      .getByRole("button", { name: "Review exchange", exact: true })
+      .click();
+    await page.getByRole("button", { name: /Approve 1000 PDC/ }).click();
+    await expect(
+      page.getByRole("button", { name: "Confirm exchange", exact: true }),
+    ).toBeEnabled();
+    const pdqBefore = await client.readContract({
+      address: tokens[1],
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [accounts[0]],
+    });
+    const countBefore = submissions;
+    await page
+      .getByRole("button", { name: "Confirm exchange", exact: true })
+      .click({ clickCount: 2 });
+    await expect(page.getByRole("status")).toContainText(
+      "Exchange PDC for PDQ confirmed on chain",
+      { timeout: 30_000 },
+    );
+    expect(submissions - countBefore).toBe(1);
+    expect(
+      await client.readContract({
+        address: tokens[1],
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [accounts[0]],
+      }),
+    ).toBeGreaterThan(pdqBefore);
+    await page.goto("/liquidity");
+    await page.getByLabel("Action", { exact: true }).selectOption("remove");
+    await page
+      .getByRole("button", { name: "Review liquidity", exact: true })
+      .click();
+    await page.getByRole("button", { name: /Approve .* LP/ }).click();
+    await page
+      .getByRole("button", { name: "Confirm withdrawal", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toContainText(
+      "Remove liquidity confirmed on chain",
+      { timeout: 30_000 },
+    );
+    expect(
+      await client.readContract({
+        address: pair,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [accounts[0]],
+      }),
+    ).toBeLessThan(lpBefore);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator(".sidebar")).toHaveCSS(
+      "transform",
+      "matrix(1, 0, 0, 1, -270, 0)",
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: "test-results/demo-liquidity-mobile.png",
       fullPage: true,
     });
   } finally {

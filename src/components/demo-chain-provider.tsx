@@ -43,6 +43,7 @@ export type ContractCall = {
 };
 type Client = ReturnType<typeof createPublicClient>;
 type Context = {
+  walletRevision: number;
   config: DemoConfig | null;
   client: Client | null;
   loading: boolean;
@@ -86,11 +87,23 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [walletRevision, setWalletRevision] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [entries, setEntries] = useState<TransactionEntry[]>([]);
   const locked = useRef(false);
   const identity = useRef(wallet.address);
   identity.current = wallet.address;
+
+  useEffect(() => {
+    const changed = () => {
+      setWalletRevision((value) => value + 1);
+      setMessage(
+        "Wallet network changed. Review the operation again. Submitted transactions are still checked on their original network.",
+      );
+    };
+    wallet.provider?.on?.("chainChanged", changed);
+    return () => wallet.provider?.removeListener?.("chainChanged", changed);
+  }, [wallet.provider]);
 
   useEffect(() => {
     let active = true;
@@ -265,6 +278,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   return (
     <DemoContext.Provider
       value={{
+        walletRevision,
         config,
         client,
         loading,

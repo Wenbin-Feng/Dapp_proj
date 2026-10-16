@@ -21,7 +21,8 @@
     "contracts:build": "hardhat build",
     "contracts:test": "npm run contracts:build && node --test contracts/test/*.test.mjs",
     "chain:node": "hardhat node --hostname 127.0.0.1",
-    "chain:deploy-tokens": "npm run contracts:build && node scripts/deploy-tokens.mjs"
+    "chain:deploy-tokens": "npm run contracts:build && node scripts/deploy-tokens.mjs",
+    "chain:deploy-amm": "node scripts/deploy-amm.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -44,6 +45,8 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@uniswap/v2-core": "1.0.1",
+    "@uniswap/v2-periphery": "1.1.0-beta.0",
     "hardhat": "3.20.0",
     "solc": "0.8.37",
     "typescript": "^5.9.3",

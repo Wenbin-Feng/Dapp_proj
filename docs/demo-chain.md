@@ -23,6 +23,26 @@ it does not automatically issue new tokens or repeat distributions. Never remove
 Sepolia journal to “retry”. If a local node is reset, archive its journal explicitly
 before creating a new local deployment. Do not use Hardhat keys outside a local node.
 
+## AMM and LP setup
+
+After deploying tokens, run `npm run chain:deploy-amm`. This deploys the pinned
+official Factory, WETH9 and Router02, creates PDC/PDQ, and seeds 100,000 of each
+from the treasury. The script journals and resumes this step without a second
+deposit. It refuses to seed an unexpectedly funded pool. Keep protocol fees off.
+Restart Next.js if deployment configuration changed, then open **Exchange** or
+**Liquidity**. The same manifest contains all addresses and the starting block.
+
+Exchange and liquidity approvals use exact amounts. After each approval the
+page requotes; the user separately confirms the operation. Quotes use one block
+snapshot, integer amounts, 1% minimum-amount protection and a 10-minute chain
+timestamp deadline. A large price impact is separate from slippage tolerance.
+LP estimates account for both token ratios and floor rounding. A dust-sized
+operation that cannot have nonzero protected minima is rejected.
+
+Other LPs can withdraw; fees stay in reserves. Withdrawals return the current
+asset mixture, with possible impermanent loss. The pool's instant price is never
+used to value products. See [protocol provenance](uniswap-attribution.md).
+
 ## Sepolia handoff (separate from website CI)
 
 Set `DEMO_CHAIN_ID=11155111`, a Sepolia `DEMO_RPC_URL`, a funded test treasury's
