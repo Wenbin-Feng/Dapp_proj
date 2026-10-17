@@ -109,6 +109,9 @@ All four `dapp_demo_*` tables and both ingestion/reset functions are service-rol
 only. Existing six tables, functions and policies are preserved. Switching back to
 `database` changes the selected dataset; it does not undo any chain transactions.
 
+For the comparison with issue #1, installation-order tests and the read-only SQL
+acceptance check, see [database compatibility and execution](database-compatibility.md).
+
 ## Deployment and maintenance
 
 - Contracts are deployed separately from website CI. Save the manifest, journal,
