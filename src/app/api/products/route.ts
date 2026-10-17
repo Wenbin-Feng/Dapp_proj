@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { readJson, route } from "@/lib/http";
 import { businessRpc, ownedProducts } from "@/lib/products-server";
 import type { Product } from "@/lib/types";
+import { requireDatabaseProducts } from "@/lib/chain/products-server";
 
 const registerSchema = z
   .object({
@@ -20,6 +21,7 @@ export const GET = route(async () => {
 
 export const POST = route(async (request) => {
   const { db, userId } = await requireAuth({ roles: ["manufacturer"] });
+  requireDatabaseProducts();
   const input = await readJson(request, registerSchema);
   const product = await businessRpc<Product>(db, "dapp_register_product", {
     p_actor_id: userId,

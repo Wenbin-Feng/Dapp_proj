@@ -1,4 +1,7 @@
 "use client";
+import { TransactionLink } from "@/components/demo-chain-ui";
+import { displayAmount } from "@/lib/chain/amounts";
+import type { Hash } from "viem";
 import {
   useCallback,
   useEffect,
@@ -193,6 +196,19 @@ export default function Verify() {
                         <time dateTime={event.created_at}>
                           {formatDate(event.created_at)}
                         </time>
+                        {event.price_pdc && BigInt(event.price_pdc) > 0n && (
+                          <p>
+                            Settled {displayAmount(BigInt(event.price_pdc), 18)}{" "}
+                            PDC
+                          </p>
+                        )}
+                        {event.transaction_hash && (
+                          <p>
+                            <TransactionLink
+                              hash={event.transaction_hash as Hash}
+                            />
+                          </p>
+                        )}
                       </article>
                     ))}
                   </div>

@@ -3,14 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
+  "overrides": {
+    "solc": {
+      "tmp": "0.2.7"
+    }
+  },
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "contracts:build": "hardhat build && node scripts/export-product-abi.mjs",
+    "contracts:test": "npm run contracts:build && node --test contracts/test/*.test.mjs",
+    "chain:node": "hardhat node --hostname 127.0.0.1",
+    "chain:deploy-tokens": "npm run contracts:build && node scripts/deploy-tokens.mjs",
+    "chain:deploy-amm": "node scripts/deploy-amm.mjs",
+    "chain:deploy-products": "npm run contracts:build && node scripts/deploy-products.mjs",
+    "chain:sync": "node scripts/sync-products.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -22,15 +36,21 @@
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "sharp": "0.35.5",
+    "viem": "2.57.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
+    "@openzeppelin/contracts": "5.6.1",
     "@playwright/test": "^1.58.0",
     "@types/node": "^24.0.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@uniswap/v2-core": "1.0.1",
+    "@uniswap/v2-periphery": "1.1.0-beta.0",
+    "hardhat": "3.20.0",
+    "solc": "0.8.37",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
   }

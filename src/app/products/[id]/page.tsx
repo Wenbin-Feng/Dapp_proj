@@ -35,7 +35,12 @@ import {
   SuccessNotice,
   WarrantyPanel,
 } from "@/components/ui";
-import { api, productGateway } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
+import { useProductGateway } from "@/components/product-gateway";
+import { useDemoChain } from "@/components/demo-chain-provider";
+import { TransactionLink } from "@/components/demo-chain-ui";
+import { displayAmount } from "@/lib/chain/amounts";
+import type { Hash } from "viem";
 import {
   formatDate,
   shortWallet,
@@ -50,12 +55,17 @@ export default function ProductPage() {
   return <ProductView key={`${profile?.id || "signed-out"}:${id}`} id={id} />;
 }
 function ProductView({ id }: { id: string }) {
+  const productGateway = useProductGateway();
+  const chain = useDemoChain();
   const { profile } = useWallet();
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState(0);
   const [receiver, setReceiver] = useState("");
+  const [transferMode, setTransferMode] = useState("free");
+  const [price, setPrice] = useState("");
+  const [expiry, setExpiry] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -123,7 +133,11 @@ function ProductView({ id }: { id: string }) {
     setMessage("");
     setBusy(true);
     try {
-      await productGateway.transfer(id, receiver.trim());
+      await productGateway.transfer(
+        id,
+        receiver.trim(),
+        transferMode === "paid" ? { price, expiresAt: expiry } : undefined,
+      );
       setReceiver("");
       setMessage(
         "Transfer sent. Ownership changes when the recipient accepts it.",
@@ -255,6 +269,14 @@ function ProductView({ id }: { id: string }) {
                         {owner && <Badge tone="green">Owned by you</Badge>}
                       </div>
                       <ProductFacts product={product} />
+                      {product.chain && (
+                        <p className="small">
+                          Registration evidence:{" "}
+                          <TransactionLink
+                            hash={product.chain.transaction_hash as Hash}
+                          />
+                        </p>
+                      )}
                       <div
                         style={{
                           borderTop: "1px solid var(--border)",
@@ -302,6 +324,21 @@ function ProductView({ id }: { id: string }) {
                               <time dateTime={event.created_at}>
                                 {formatDate(event.created_at)}
                               </time>
+                              {event.price_pdc &&
+                                BigInt(event.price_pdc) > 0n && (
+                                  <p>
+                                    Settled{" "}
+                                    {displayAmount(BigInt(event.price_pdc), 18)}{" "}
+                                    PDC
+                                  </p>
+                                )}
+                              {event.transaction_hash && (
+                                <p>
+                                  <TransactionLink
+                                    hash={event.transaction_hash as Hash}
+                                  />
+                                </p>
+                              )}
                             </article>
                           ))}
                         </div>
@@ -543,6 +580,68 @@ function ProductView({ id }: { id: string }) {
                     </div>
                     {canTransfer ? (
                       <form onSubmit={(event) => void transfer(event)}>
+                        {chain.config?.productBackend === "chain" && (
+                          <>
+                            <div className="field">
+                              <label htmlFor="transfer-kind">
+                                Handover type
+                              </label>
+                              <select
+                                id="transfer-kind"
+                                value={transferMode}
+                                disabled={busy}
+                                onChange={(event) =>
+                                  setTransferMode(event.target.value)
+                                }
+                              >
+                                <option value="free">
+                                  Free inventory or ownership handover
+                                </option>
+                                <option value="paid">Sell for PDC</option>
+                              </select>
+                            </div>
+                            {transferMode === "paid" && (
+                              <>
+                                <div className="field">
+                                  <label htmlFor="product-price">
+                                    Fixed PDC price
+                                  </label>
+                                  <input
+                                    id="product-price"
+                                    required
+                                    disabled={busy}
+                                    inputMode="decimal"
+                                    value={price}
+                                    placeholder="100"
+                                    onChange={(event) =>
+                                      setPrice(event.target.value)
+                                    }
+                                  />
+                                </div>
+                                <div className="field">
+                                  <label htmlFor="offer-expiry">
+                                    Offer expires
+                                  </label>
+                                  <input
+                                    id="offer-expiry"
+                                    required
+                                    disabled={busy}
+                                    type="datetime-local"
+                                    value={expiry}
+                                    onChange={(event) =>
+                                      setExpiry(event.target.value)
+                                    }
+                                  />
+                                </div>
+                                <p className="small muted">
+                                  Only the specified buyer can pay and accept.
+                                  The price is fixed in PDC; the AMM rate does
+                                  not change it.
+                                </p>
+                              </>
+                            )}
+                          </>
+                        )}
                         <p className="small" style={{ marginBottom: 19 }}>
                           Transfer to a registered{" "}
                           {profile?.role === "manufacturer"

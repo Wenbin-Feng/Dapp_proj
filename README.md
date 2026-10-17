@@ -2,14 +2,14 @@
 
 An English, dark-themed product passport application for COMP5565. Four wallet roles cover product registration, retail delivery, resale, and warranty service.
 
-The current implementation uses Next.js and Supabase to simulate the contract business logic. It does not submit blockchain transactions or claim that database records are immutable on-chain. MetaMask signatures are used for actual wallet authentication. See [the interface handoff](docs/api.md) before replacing the business gateway with smart contracts.
+The default product backend uses Next.js and Supabase transaction functions. Optional test-chain mode adds fixed-supply PDC/PDQ, a Uniswap V2 pool with LP deposits/withdrawals, and atomic PDC product purchases with verified event indexing. MetaMask authenticates the wallet and separately signs chain transactions. Start with [demo-chain setup](docs/demo-chain.md) and [product settlement/operations](docs/product-settlement.md); chain mode requires its own deployment and additive SQL setup.
 
 ## Run locally
 
 Requires Node.js 24 LTS and npm (`.nvmrc`, CI and Vercel all use Node 24). Run from this directory:
 
 ```sh
-npm install
+npm ci
 cp .env.example .env.local
 npm run dev
 ```
@@ -55,13 +55,14 @@ Next.js verifies manufacturer permissions, bounds the request, decodes the real 
 
 ```sh
 npm run typecheck
+npm run contracts:test
 npm test
 npx playwright install chromium
 npm run test:e2e
 npm run build
 ```
 
-Tests include actual PostgreSQL migration/RPC scenarios in isolated PGlite, image normalization, warranty boundary dates, request origin checks, and verified wallet identity rules. Browser tests cover responsive layouts, the actual browser image compressor, and UI workflows against intercepted test-only API fixtures; they are not a substitute for a real signed wallet/cloud session. Tests do not modify the cloud database. The real MetaMask signature and cloud workflow need a browser wallet and the above Supabase setup.
+Tests include actual PostgreSQL migrations/RPCs, Hardhat contracts and receipt-to-index integration, image normalization, warranty boundaries, request origins, and wallet identity rules. Browser tests execute real Hardhat transfers, swaps, LP operations and product settlement/repair, using isolated identity/HTTP fixtures and PostgreSQL event reduction. They do not modify cloud Supabase or replace real MetaMask/cloud acceptance testing.
 
 ## Deployment
 
@@ -69,4 +70,4 @@ The repository uses `main`/feature branches for development and `release` for pr
 
 Use a Node.js-capable Next.js host (including Vercel); static export cannot run the API. Configure the same environment variables and an HTTPS app URL. The secret key must never use a `NEXT_PUBLIC_` prefix. Set Auth redirect URLs for the deployed hostname. On deployment, use a newly rotated secret key instead of credentials that have been pasted into a conversation.
 
-Private app tables have RLS enabled and deny direct anonymous/authenticated table access. Trusted server routes explicitly authorize each request; narrowly exposed public verification returns no display names, descriptions, raw wallet addresses, or user UUIDs. Business state changes use PostgreSQL row locks and transaction functions. This is a centralized prototype and requires the later contract implementation for the course's final blockchain requirement.
+Private app tables have RLS enabled and deny direct anonymous/authenticated table access. Trusted server routes authorize each request; public verification returns masked ownership and no private repair descriptions or user IDs. Database mode uses PostgreSQL row locks and transaction functions; chain mode uses contract-enforced ownership/payment/warranty rules, while Supabase stores verified query projections and private repair text. Both retain the classroom prototype's one-time self-selected roles.

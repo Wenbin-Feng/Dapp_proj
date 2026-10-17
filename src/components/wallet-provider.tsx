@@ -20,6 +20,7 @@ type EthereumProvider = EthereumWallet & {
   providers?: EthereumProvider[];
 };
 interface WalletContextValue {
+  provider: EthereumProvider | null;
   profile: Profile | null;
   loading: boolean;
   connecting: boolean;
@@ -59,6 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [discovering, setDiscovering] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<EthereumProvider | null>(null);
@@ -280,6 +282,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (providerRef.current || typeof wallet.request !== "function") return;
       providerRef.current = wallet;
       setProvider(wallet);
+      setDiscovering(false);
     };
     const onAnnounce = (event: Event) => {
       const detail = (
@@ -296,6 +299,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const fallback = window.setTimeout(() => {
       const wallet = injectedMetaMask();
       if (wallet) select(wallet);
+      setDiscovering(false);
     }, 200);
     return () => {
       window.removeEventListener("eip6963:announceProvider", onAnnounce);
@@ -326,8 +330,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <WalletContext.Provider
       value={{
+        provider,
         profile,
-        loading,
+        loading: loading || discovering,
         connecting,
         error,
         address,

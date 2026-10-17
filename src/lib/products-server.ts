@@ -2,6 +2,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ApiError } from "./http";
+import {
+  chainProductsEnabled,
+  chainDashboard,
+  chainProductDetail,
+  chainPublicProduct,
+} from "./chain/products-server";
 import type {
   Claim,
   DashboardData,
@@ -104,6 +110,8 @@ export async function ownedProducts(
   db: SupabaseClient,
   userId: string,
 ): Promise<Product[]> {
+  if (chainProductsEnabled())
+    return (await chainDashboard(db, userId)).products;
   const { data, error } = await db
     .from("dapp_products")
     .select(PRODUCT_COLUMNS)
@@ -118,6 +126,10 @@ export async function relatedTransfers(
   userId: string,
   productId?: string,
 ): Promise<Transfer[]> {
+  if (chainProductsEnabled())
+    return (await chainDashboard(db, userId)).transfers.filter(
+      (item) => !productId || item.product_id === productId,
+    );
   let query = db
     .from("dapp_transfers")
     .select(TRANSFER_SELECT)
@@ -133,6 +145,10 @@ export async function relatedClaims(
   userId: string,
   productId?: string,
 ): Promise<Claim[]> {
+  if (chainProductsEnabled())
+    return (await chainDashboard(db, userId)).claims.filter(
+      (item) => !productId || item.product_id === productId,
+    );
   let query = db
     .from("dapp_claims")
     .select(CLAIM_SELECT)
@@ -147,6 +163,7 @@ export async function dashboard(
   db: SupabaseClient,
   userId: string,
 ): Promise<DashboardData> {
+  if (chainProductsEnabled()) return chainDashboard(db, userId);
   const [products, transfers, claims] = await Promise.all([
     ownedProducts(db, userId),
     relatedTransfers(db, userId),
@@ -160,6 +177,7 @@ export async function productDetail(
   userId: string,
   id: string,
 ): Promise<ProductDetail> {
+  if (chainProductsEnabled()) return chainProductDetail(db, userId, id);
   const { data, error } = await db
     .from("dapp_products")
     .select(PRODUCT_COLUMNS)
@@ -207,6 +225,7 @@ export async function publicProduct(
   db: SupabaseClient,
   query: string,
 ): Promise<PublicProductDetail> {
+  if (chainProductsEnabled()) return chainPublicProduct(db, query);
   const isId = z.uuid().safeParse(query).success;
   // Query only the public subset. Full addresses are used transiently solely to
   // produce masks and never returned alongside the public payload.

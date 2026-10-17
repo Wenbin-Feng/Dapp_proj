@@ -14,17 +14,24 @@ import {
   ShieldCheck,
   UserRound,
   X,
+  Wallet,
+  Droplets,
+  RefreshCw,
 } from "lucide-react";
 import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
 import { Loading, Logo } from "./ui";
+import { ProductChainStatus } from "./product-chain-status";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
+  { href: "/wallet", label: "Demo wallet", icon: Wallet },
+  { href: "/exchange", label: "Exchange", icon: RefreshCw },
+  { href: "/liquidity", label: "Liquidity", icon: Droplets },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
   { href: "/profile", label: "My profile", icon: UserRound },
 ];
@@ -134,7 +141,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             {shortWallet(wallet.profile.wallet_address)}
           </span>
         </div>
-        <div className="app-content">{children}</div>
+        <div className="app-content">
+          {!["/wallet", "/exchange", "/liquidity"].includes(pathname) && (
+            <ProductChainStatus key={wallet.profile.id} />
+          )}
+          {children}
+        </div>
         <footer className="app-footer">
           <span>{BRAND.name} · Product provenance, made clear.</span>
           <Link href="/verify">
