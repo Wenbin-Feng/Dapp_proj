@@ -92,13 +92,21 @@ jobs:
       - name: Pull production project settings
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
+      - name: Configure deployed Sepolia contracts
+        env:
+          PRODUCT_BACKEND: ${{ vars.PRODUCT_BACKEND || 'database' }}
+        run: node scripts/prepare-demo-production.mjs
+
       - name: Build production artifacts
         run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy production artifacts
         shell: bash
         run: |
-          deployment_url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          deployment_url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" \
+            --env "DEMO_DEPLOYMENT=$DEMO_DEPLOYMENT" \
+            --env "DEMO_PUBLIC_RPC_URL=$DEMO_PUBLIC_RPC_URL" \
+            --env "PRODUCT_BACKEND=$PRODUCT_BACKEND")"
           {
             echo '### Production deployment'
             echo
