@@ -1,0 +1,15 @@
+{
+  "version": "demo-v1",
+  "chainId": 11155111,
+  "treasury": "0xF2d0DDeBA6E86ef332E9A57ae98adE20E3A0A67f",
+  "pdc": "0xe2B03E4B90c9F737360ad1c376A532D612fa85d8",
+  "pdq": "0x8F3683C71EFea7c61962D5d9302aFd5A85a97EF2",
+  "fromBlock": "11940989",
+  "factory": "0x51bd5B423A1a9154Bd0a4C41E81dC27D6C420403",
+  "router": "0x9Dc274E7268C0340ec05596F09e351A3f789242b",
+  "pair": "0xc7f58c0addDc027c4b68dc904dEc3a7279e50Ccb",
+  "weth": "0x4FFAeA05Bd9E65A83D331F63EEDaC450b7737b76",
+  "products": "0xEc19923f4dC764F1e69A342ce668aD987729F617",
+  "productsFromBlock": "11941016",
+  "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
+}
