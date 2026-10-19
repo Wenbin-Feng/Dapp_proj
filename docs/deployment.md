@@ -77,7 +77,7 @@ npx --yes vercel@64.0.2 link
 
 ## 5. 首次运行与日常发布
 
-GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod`，发布 URL 和 commit 会显示在 run Summary。
+GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod --no-wait`，提交的发布 URL 和 commit 会显示在 run Summary。随后最多等待 5 分钟，并通过 Vercel API 确认状态为 `READY` 且生产域名已分配；未就绪时流水线失败并输出经过字段筛选的状态和构建日志。仅提交成功或等待超时都不算上线成功。
 
 日常流程：
 
