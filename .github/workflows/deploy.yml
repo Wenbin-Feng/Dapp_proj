@@ -103,13 +103,30 @@ jobs:
       - name: Deploy production artifacts
         shell: bash
         run: |
-          deployment_url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" \
+          deployment_url="$(vercel deploy --prebuilt --prod --no-wait --token="$VERCEL_TOKEN" \
             --env "DEMO_DEPLOYMENT=$DEMO_DEPLOYMENT" \
             --env "DEMO_PUBLIC_RPC_URL=$DEMO_PUBLIC_RPC_URL" \
             --env "PRODUCT_BACKEND=$PRODUCT_BACKEND")"
           {
-            echo '### Production deployment'
+            echo '### Production deployment submitted'
             echo
             echo "Deployment: $deployment_url"
             echo "Source commit: $GITHUB_SHA"
           } >> "$GITHUB_STEP_SUMMARY"
+          wait_status=0
+          vercel inspect "$deployment_url" --wait --timeout=5m --token="$VERCEL_TOKEN" || wait_status=$?
+          deployment_host="${deployment_url#https://}"
+          curl --fail --silent --show-error --max-time 30 --get \
+            --data-urlencode "teamId=$VERCEL_ORG_ID" \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$deployment_host" \
+            | jq '{id, readyState, errorCode, errorMessage, aliasAssigned, aliasError}' \
+            > deployment-state.json
+          cat deployment-state.json
+          if (( wait_status != 0 )) || ! jq --exit-status \
+            '.readyState == "READY" and .aliasAssigned == true' deployment-state.json > /dev/null; then
+            timeout 60s vercel inspect "$deployment_url" --logs --token="$VERCEL_TOKEN" || true
+            echo '::error::Vercel deployment did not become ready with production domains assigned. See deployment status and build logs above.'
+            exit 1
+          fi
+          echo 'State: READY; production domains assigned.' >> "$GITHUB_STEP_SUMMARY"
