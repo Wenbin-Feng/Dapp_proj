@@ -5,6 +5,11 @@ on:
     branches:
       - release
   workflow_dispatch:
+    inputs:
+      diagnose:
+        description: Read recent Vercel deployment states without deploying.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,16 +20,45 @@ concurrency:
   queue: max
 
 jobs:
+  diagnose:
+    name: Diagnose Vercel deployment
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnose
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Read recent deployment states
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --max-time 30 --get \
+            --data-urlencode "teamId=$VERCEL_ORG_ID" \
+            --data-urlencode "projectId=$VERCEL_PROJECT_ID" \
+            --data-urlencode 'limit=3' \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            'https://api.vercel.com/v6/deployments' \
+            | jq '[.deployments[] | {uid, url, state}]' > deployments.json
+          cat deployments.json
+          while read -r deployment_id; do
+            curl --fail --silent --show-error --max-time 30 --get \
+              --data-urlencode "teamId=$VERCEL_ORG_ID" \
+              --header "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/$deployment_id" \
+              | jq '{id, readyState, errorCode, errorMessage, aliasAssigned, aliasError}'
+          done < <(jq --raw-output '.[].uid' deployments.json)
+
   validate:
     name: Validate release
-    if: github.ref == 'refs/heads/release'
+    if: github.ref == 'refs/heads/release' && !inputs.diagnose
     uses: ./.github/workflows/ci.yml
     with:
       check-build: false
 
   configuration:
     name: Check deployment configuration
-    if: github.ref == 'refs/heads/release'
+    if: github.ref == 'refs/heads/release' && !inputs.diagnose
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.configuration.outputs.ready }}
@@ -62,7 +96,7 @@ jobs:
     needs:
       - validate
       - configuration
-    if: github.ref == 'refs/heads/release' && needs.configuration.outputs.ready == 'true'
+    if: github.ref == 'refs/heads/release' && !inputs.diagnose && needs.configuration.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
