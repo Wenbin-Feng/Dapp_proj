@@ -46,7 +46,7 @@ jobs:
               --data-urlencode "teamId=$VERCEL_ORG_ID" \
               --header "Authorization: Bearer $VERCEL_TOKEN" \
               "https://api.vercel.com/v13/deployments/$deployment_id" \
-              | jq '{id, readyState, errorCode, errorMessage, aliasAssigned, aliasError}'
+              | jq '{id, readyState, errorCode, errorMessage, aliasAssigned, aliasError, blockingReason, blockedReason, readyStateReason, checksState, checksConclusion, responseFields: keys}'
           done < <(jq --raw-output '.[].uid' deployments.json)
 
   validate:
