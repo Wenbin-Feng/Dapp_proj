@@ -77,7 +77,7 @@ npx --yes vercel@64.0.2 link
 
 ## 5. 首次运行与日常发布
 
-GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod`，发布 URL 和 commit 会显示在 run Summary。
+GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod --no-wait`，提交的发布 URL 和 commit 会显示在 run Summary。随后最多等待 5 分钟，并通过 Vercel API 确认状态为 `READY` 且生产域名已分配；未就绪时流水线失败并输出经过字段筛选的状态和构建日志。仅提交成功或等待超时都不算上线成功。
 
 日常流程：
 
@@ -96,6 +96,16 @@ git push -u origin dev/your-change
 生产发布后，用真实 MetaMask 钱包检查登录、首次资料填写、产品登记、图片上传、转让和保修。CI 浏览器测试使用接口 fixtures，不替代真实钱包及 Supabase 联调。
 
 代币和商品合约的发布独立于网站 CI；网站更新不会重新发行代币。可选链上模式的部署、SQL 手工交付、索引恢复和验收步骤见 [商品结算与运维](product-settlement.md)。云端 SQL 由指定团队成员在 issue 中核对完整语句后执行；默认保留 `PRODUCT_BACKEND=database`，全部准备好再切换。
+
+## 已部署 Sepolia 合约的网站接入
+
+`config/demo-chain.sepolia.json` 记录 2026-10-18 已部署并核验的公开合约地址、起始区块和公共 RPC。PDC/PDQ 各发行 100 万，池子初始各 10 万；六个部署合约及 Pair 的代码、25 笔成功回执和五个演示钱包分发已独立核对。完整部署 journal 仍由团队另外备份，勿删除后重发。
+
+生产流水线在 `vercel pull` 后运行 `scripts/prepare-demo-production.mjs`：追加公开链配置供构建使用，并通过部署的 `--env` 参数提供相同运行时配置。复用已有三项 Vercel Secrets；开发同学无需单独登录 Vercel。团队原 Supabase 项目、服务端密钥和 Storage 配置继续从原 Vercel 项目拉取，不需要新建 Supabase 数据库。
+
+默认 `PRODUCT_BACKEND=database`，合并到 `release` 后先开放已配置的代币钱包、AMM 兑换和 LP。部署完成后检查 `/api/chain/config` 应返回 Sepolia 与本次合约地址，而不是 `data: null`。
+
+商品链上模式仍需原 Supabase 项目完成 [issue #5](https://github.com/Wenbin-Feng/Dapp_proj/issues/5) 的增量 SQL 和七项只读验收。准备完成后，在 GitHub 仓库 **Settings → Secrets and variables → Actions → Variables** 设置 `PRODUCT_BACKEND=chain`，再手动运行 `release` 的生产流水线；无需修改 Vercel Dashboard。回到数据库商品模式则设为 `database` 后重新运行。切换使用独立商品数据集，旧数据库产品不会自动迁移上链。
 
 ## 官方资料
 
