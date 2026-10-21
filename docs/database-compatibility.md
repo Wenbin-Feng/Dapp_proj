@@ -33,6 +33,8 @@
 
 ## 组长执行顺序
 
+完整的安装前检查、事务演练、正式安装和安全卸载步骤见 [Supabase 增量 SQL 执行与撤销](supabase-execution.md)。卸载仅适用于确认归属且四张表均为空的演示模块；已有数据时脚本会拒绝删除。
+
 1. 确认 Supabase 已执行初始迁移 `202610140001_initial.sql`。不要重建或删除已有表。
 2. 在 [issue #5](https://github.com/Wenbin-Feng/Dapp_proj/issues/5) 核对完整增量 SQL 与仓库迁移一致，由指定人员在 Supabase SQL Editor 执行。若已经执行成功，可直接检查，不必为本 PR 重复创建对象。
 3. 执行仓库 `supabase/checks/verify_demo_chain.sql` 的完整内容。它是只读查询，应返回 **7 行，所有 `ok=true`**：基础表存在；演示表所需列存在、RLS 开启、客户端无表权限、服务角色分别具备四种 DML 权限；两个函数签名/搜索路径/执行权限正确。
