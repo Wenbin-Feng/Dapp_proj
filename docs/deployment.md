@@ -91,7 +91,7 @@ git push -u origin dev/your-change
 # 在 GitHub 提交目标为 release 的 PR，交给组长 Wenbin-Feng 在 CI 通过后合并。
 ```
 
-按团队约定使用 `dev/<功能点>` 并提交目标为 `release` 的 PR。开发者先同步最新 `release`、解决冲突、完成相应 SQL/合约前置并附上验证结果，再把 PR 链接交给组长 `Wenbin-Feng` 点击合并。当前 Vercel Hobby 项目要求提交作者具备项目部署权限，最终合并由与该 Vercel 项目关联的组长账号完成，其生成的新 `release` 提交触发生产发布。
+按团队约定使用 `dev/<功能点>` 并提交目标为 `release` 的 PR。开发者先同步最新 `release`、解决冲突、完成相应 SQL/合约前置并附上验证结果，再把 PR 链接交给组长 `Wenbin-Feng`。当前 Vercel Hobby 项目要求提交作者具备项目部署权限，组长使用与该 Vercel 项目关联的账号，以 **Create a merge commit** 方式完成普通合并，由该账号创建的新 `release` 合并提交触发生产发布。
 
 流水线按生产环境串行运行，不取消正在执行的部署，最多保留 100 个等待任务。手动重跑仅发布当前 `release` 提交，不会改变其作者；出现作者权限导致的 `BLOCKED` 时，先完成组长账号的正常合并流程。需要回退代码时，将回退提交通过 PR 交给组长处理。
 
