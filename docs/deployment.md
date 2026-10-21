@@ -77,7 +77,11 @@ npx --yes vercel@64.0.2 link
 
 ## 5. 首次运行与日常发布
 
-GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod --no-wait`，提交的发布 URL 和 commit 会显示在 run Summary。随后最多等待 5 分钟，并通过 Vercel API 确认状态为 `READY` 且生产域名已分配；未就绪时流水线失败并输出经过字段筛选的状态和构建日志。仅提交成功或等待超时都不算上线成功。
+GitHub **Actions → Deploy production → Run workflow**，选择 **release** 分支运行。手动触发仅允许 `release`；其他分支不会执行测试或部署。所有检查通过后，生产 job 执行 `vercel pull --environment=production`、`vercel build --prod`、`vercel deploy --prebuilt --prod --no-wait`，提交的发布 URL 和 commit 会显示在 run Summary。
+
+随后 `scripts/wait-for-vercel.mjs` 在 5 分钟内轮询带 `teamId` 的 Vercel Deployment API；每次请求最多等待 15 秒，不依赖 `vercel inspect` 的账号资料查询。只有状态为 `READY`、`aliasAssigned=true`，且项目 ID 和源 commit 与本次流水线一致时才成功。初始化、排队、构建及域名分配中会继续等待；临时网络错误、404、429 和服务端错误会在剩余时间内重试。401/403 查询授权失败、部署 `ERROR` / `CANCELED` / `BLOCKED`、域名分配失败和等待超时会分别报告。超时代表未能确认部署完成，需要打开 Summary 中的部署页面检查最终状态。
+
+日志只输出部署状态、域名分配进度和经过验证的结果，不输出完整 API 响应、上游错误文本或环境变量。仅提交成功不算上线成功。
 
 日常流程：
 
@@ -112,6 +116,7 @@ git push -u origin dev/your-change
 ## 官方资料
 
 - [Vercel：GitHub Actions 部署](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)
+- [Vercel：查询部署状态 API](https://vercel.com/docs/rest-api/deployments/get-a-deployment-by-id-or-url)
 - [Vercel：设置生产分支](https://vercel.com/kb/guide/can-i-use-a-non-default-branch-for-production)
 - [GitHub：部署并发与排队](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
 - [Vercel：关闭 Git 自动部署](https://vercel.com/docs/project-configuration/git-configuration)
