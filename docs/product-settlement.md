@@ -109,15 +109,25 @@ All four `dapp_demo_*` tables and both ingestion/reset functions are service-rol
 only. Existing six tables, functions and policies are preserved. Switching back to
 `database` changes the selected dataset; it does not undo any chain transactions.
 
+For the comparison with issue #1, installation-order tests and the read-only SQL
+acceptance check, see [database compatibility and execution](database-compatibility.md).
+
 ## Deployment and maintenance
 
 - Contracts are deployed separately from website CI. Save the manifest, journal,
   generated ABI, compiler/package lock, addresses, version and deployment block.
   Website releases reuse them; never delete a Sepolia journal to force a retry.
-- For Sepolia, supply a funded test treasury, five demo addresses and RPC config
-  as described in `demo-chain.md`; actual Sepolia deployment is deferred until the
-  team supplies them. Set reviewed `DEMO_DEPLOYMENT` JSON and public HTTPS RPC in
-  the website environment; deploy both code and SQL before enabling chain mode.
+- The Sepolia contracts were deployed on 2026-10-18. Reuse the public addresses,
+  starting blocks and RPC in [the reviewed manifest](../config/demo-chain.sepolia.json)
+  and retain the original deployment journal. Website CI injects this configuration;
+  do not redeploy contracts to retry a website release. Keep `PRODUCT_BACKEND=database`
+  until the original Supabase project's seven SQL acceptance checks, deployment
+  configuration and wallet integration have been verified. The cloud SQL checks
+  remain unconfirmed; the local SQL compatibility check does not establish them.
+- Update the `dev/<feature>` branch against `release`, resolve conflicts and pass
+  CI, then send the PR to the group leader. The leader, whose account has deployment
+  permission for the Vercel project, performs the final merge. Confirm production
+  readiness and the live chain configuration after that release.
 - Configure a random server-only `DEMO_INDEXER_TOKEN` of at least 32 characters.
   With matching shell `DEMO_INDEXER_TOKEN` and `DEMO_APP_URL`, run
   `npm run chain:sync`. It performs up to 20 batches and reports remaining backlog.
