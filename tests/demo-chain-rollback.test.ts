@@ -193,3 +193,19 @@ it("rehearses the actual migration with rollback and leaves installation availab
     await pg.close();
   }
 }, 30000);
+
+it("reports an occupied table name with an unexpected relation type instead of a fresh install", async () => {
+  const pg = await existingDatabase();
+  try {
+    await pg.exec("create view public.dapp_demo_chain_events as select 1 as id");
+    const before = await snapshot(pg);
+    const inventory = await pg.query<{ object_name: string; present: boolean; object_type: string }>(
+      await readSql("checks/preflight_demo_chain.sql"),
+    );
+    expect(inventory.rows.find((row) => row.object_name === "public.dapp_demo_chain_events"))
+      .toMatchObject({ present: true, object_type: "UNEXPECTED RELATION: STOP" });
+    expect(await snapshot(pg)).toEqual(before);
+  } finally {
+    await pg.close();
+  }
+}, 30000);

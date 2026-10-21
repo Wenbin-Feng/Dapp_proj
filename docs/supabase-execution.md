@@ -6,7 +6,7 @@
 
 在 Supabase Dashboard 选择团队项目 → SQL Editor → New query。每个脚本都完整复制、单独运行，并保存结果。
 
-1. 运行 [`preflight_demo_chain.sql`](../supabase/checks/preflight_demo_chain.sql)，返回 12 行对象清单。六行 `base` 必须全部 `present=true`。六行 `demo` 全为 false 才是全新安装；若全部为 true，先直接做第 4 步，验收通过就不用重装。若部分存在或基础表缺失，停止并把清单发回 issue #5，先查明现状。
+1. 运行 [`preflight_demo_chain.sql`](../supabase/checks/preflight_demo_chain.sql)，返回 12 行对象清单。已有对象的 `object_type` 必须是 `table` 或 `function`，出现 `STOP` 立即停止（同名视图、分区表等不能当作尚未安装）。六行 `base` 必须全部 `present=true`。六行 `demo` 全为 false 才是全新安装；若全部为 true，先直接做第 4 步，验收通过就不用重装。若部分存在或基础表缺失，停止并把清单发回 issue #5，先查明现状。
 2. 可选：全新安装时先演练。复制正式安装 SQL，将**末尾唯一的 `commit;` 改为 `rollback;`**，完整运行；它只验证本次 SQL 能否执行，不保留修改。重新运行第 1 步，确认对象清单与演练前一致。演练过程中也会短暂占用数据库锁，请选空闲时间。
 3. 正式运行 [`202610160001_demo_chain.sql`](../supabase/migrations/202610160001_demo_chain.sql)。保留开头 `begin;` 和结尾 `commit;`，整份一次运行，不要逐条选中执行。新增四张表、两个 RPC、索引和权限；不改原有六张业务表。若执行前已有同名对象，不要把重跑当成恢复方案：`create or replace function` 会替换函数定义，需要先核对现有版本并备份。
 4. 运行 [`verify_demo_chain.sql`](../supabase/checks/verify_demo_chain.sql)，必须 **7 行全部 `ok=true`**。它只检查结构和权限，不读取私密售后正文。失败时保留结果，不要删表或放开客户端权限来绕过检查。
