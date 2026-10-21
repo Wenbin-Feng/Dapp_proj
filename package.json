@@ -16,7 +16,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/vercel-deployment.test.mjs",
     "test:e2e": "playwright test",
     "contracts:build": "hardhat build && node scripts/export-product-abi.mjs",
     "contracts:test": "npm run contracts:build && node --test contracts/test/*.test.mjs",
