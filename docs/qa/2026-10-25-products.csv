@@ -1,0 +1,11 @@
+serial,product_id,state,public_url
+"QA-20261025-INVENTORY","4e8f0cc5-acd7-4906-8ea8-6dd8a6dcf74a","Manufacturer stock; cancelled and rejected handovers","https://dapp-proj.vercel.app/verify?q=QA-20261025-INVENTORY"
+"QA-20261025-RETAIL","4485ffa7-a867-4b7a-9056-82b11814a60d","Retailer stock; warranty not started","https://dapp-proj.vercel.app/verify?q=QA-20261025-RETAIL"
+"QA-20261025-RESALE","5b2f1cb7-e1bf-4762-89da-752343456208","Customer Bob; resold; 2/2 completed claims","https://dapp-proj.vercel.app/verify?q=QA-20261025-RESALE"
+"QA-20261025-PENDING","79e11df8-126d-41b0-9336-b1a7e581f2c3","Retailer to Alice pending; warranty not started","https://dapp-proj.vercel.app/verify?q=QA-20261025-PENDING"
+"QA-20261025-SUBMITTED","561d49ee-4763-4bba-9649-3ba88a5f0b20","Alice; service submitted; 0/3 used","https://dapp-proj.vercel.app/verify?q=QA-20261025-SUBMITTED"
+"QA-20261025-APPROVED","87f367b7-8c30-4c1c-9daf-4df3356fe5ef","Alice; service approved; 0/3 used","https://dapp-proj.vercel.app/verify?q=QA-20261025-APPROVED"
+"QA-20261025-REJECTED","810710e9-cb19-4f5e-9baa-cfd105c8ee0a","Alice; service rejected; 0/3 used","https://dapp-proj.vercel.app/verify?q=QA-20261025-REJECTED"
+"QA-20261025-EXPIRED","8c9b4323-2aed-49f2-8535-0d000ce42d8d","Alice; warranty expired (isolated temporal fixture)","https://dapp-proj.vercel.app/verify?q=QA-20261025-EXPIRED"
+"QA-20261025-EXPIRED-REPAIR","1aa80d03-226d-4ffd-af5d-38b4ccf70a25","Alice; valid admitted repair completed after simulated expiry","https://dapp-proj.vercel.app/verify?q=QA-20261025-EXPIRED-REPAIR"
+"QA-20261025-UI","09285b51-6b22-44e4-9d16-89e02e9cbe01","Alice; uploaded WebP; UI retail handover and completed repair; 1/3 used","https://dapp-proj.vercel.app/verify?q=QA-20261025-UI"
