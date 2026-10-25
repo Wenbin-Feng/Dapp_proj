@@ -64,6 +64,8 @@ npm run build
 
 Tests include actual PostgreSQL migrations/RPCs, Hardhat contracts and receipt-to-index integration, image normalization, warranty boundaries, request origins, and wallet identity rules. Browser tests execute real Hardhat transfers, swaps, LP operations and product settlement/repair, using isolated identity/HTTP fixtures and PostgreSQL event reduction. They do not modify cloud Supabase or replace real MetaMask/cloud acceptance testing.
 
+For the separate production acceptance run, seeded QA product links, coverage and explicit manual reproduction commands, see [the live QA report](docs/qa/2026-10-25.md). Live acceptance creates dedicated QA identities and data, requires opt-in flags, and never runs in CI. Test wallet keys stay in ignored local files.
+
 ## Deployment
 
 The repository uses `main`/feature branches for development and `release` for production. Every push to `release` runs checks, then deploys to Vercel when its credentials are configured. Other branches run CI without production deployment. See [the deployment setup guide](docs/deployment.md) for the one-time Vercel/GitHub setup and branch commands.
