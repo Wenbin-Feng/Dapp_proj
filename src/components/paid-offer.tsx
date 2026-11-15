@@ -26,9 +26,27 @@ export function PaidOffer({
     allowance: bigint;
     balance: bigint;
     expires: bigint;
+    expiryDeadline: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (!quote) {
+      setExpired(false);
+      return;
+    }
+    setExpired(performance.now() >= quote.expiryDeadline);
+    const check = () => {
+      if (performance.now() >= quote.expiryDeadline) setExpired(true);
+    };
+    const timer = window.setInterval(check, 1000);
+    window.addEventListener("focus", check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [quote]);
   useEffect(
     () => setQuote(null),
     [wallet.address, transfer.id, chain.walletRevision],
@@ -50,6 +68,10 @@ export function PaidOffer({
         args: [productHex(transfer.id)],
       });
       const now = (await client.getBlock()).timestamp;
+      // The contract permits settlement at expiresAt, but not the next second.
+      // Anchor elapsed time to the chain so a skewed device clock is harmless.
+      const expiryDeadline =
+        performance.now() + Number(offer.expiresAt - now + 1n) * 1000;
       if (
         offer.status !== 1 ||
         offer.buyer.toLowerCase() !== wallet.address.toLowerCase() ||
@@ -83,6 +105,7 @@ export function PaidOffer({
       setQuote({
         price: offer.price,
         expires: offer.expiresAt,
+        expiryDeadline,
         balance,
         allowance,
       });
@@ -92,9 +115,22 @@ export function PaidOffer({
       setLoading(false);
     }
   }
+  async function requireUnexpiredQuote() {
+    if (!quote || !chain.client) throw new Error("Review the payment again.");
+    const now = (await chain.client.getBlock()).timestamp;
+    if (
+      performance.now() >= quote.expiryDeadline ||
+      now > quote.expires
+    ) {
+      setExpired(true);
+      throw new Error("This offer has expired. Ask the seller for a new offer.");
+    }
+  }
   async function approve() {
     if (!quote || !chain.config?.products) return;
+    setLoading(true);
     try {
+      await requireUnexpiredQuote();
       await chain.invoke(
         {
           address: chain.config.pdc,
@@ -107,6 +143,19 @@ export function PaidOffer({
       await review();
     } catch (reason) {
       setError(transactionError(reason));
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function pay() {
+    setLoading(true);
+    try {
+      await requireUnexpiredQuote();
+      await accept();
+    } catch (reason) {
+      setError(transactionError(reason));
+    } finally {
+      setLoading(false);
     }
   }
   const busy = disabled || loading || chain.busy;
@@ -126,12 +175,17 @@ export function PaidOffer({
             <br />
             Spender: <span className="mono">{chain.config?.products}</span>
           </p>
+          {expired && (
+            <p role="alert">
+              This offer has expired. Ask the seller for a new offer.
+            </p>
+          )}
           {quote.balance < quote.price ? (
             <p role="alert">Insufficient PDC. Ask the team for demo tokens.</p>
           ) : quote.allowance < quote.price ? (
             <button
               className="button button-small"
-              disabled={busy}
+              disabled={busy || expired}
               onClick={() => void approve()}
             >
               Approve {displayAmount(quote.price, 18)} PDC
@@ -139,8 +193,8 @@ export function PaidOffer({
           ) : (
             <button
               className="button button-small"
-              disabled={busy}
-              onClick={() => void accept()}
+              disabled={busy || expired}
+              onClick={() => void pay()}
             >
               Pay {displayAmount(quote.price, 18)} PDC and accept
             </button>

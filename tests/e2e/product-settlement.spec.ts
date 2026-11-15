@@ -439,9 +439,18 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
       ),
     ).toBeVisible();
     await buyer.goto("/transfers");
+    await buyer.clock.install();
     await buyer
       .getByRole("button", { name: "Review PDC payment", exact: true })
       .click();
+    const approvePayment = buyer.getByRole("button", { name: "Approve 100 PDC", exact: true });
+    await expect(approvePayment).toBeEnabled();
+    await buyer.clock.fastForward(2 * 86400 * 1000);
+    await expect(approvePayment).toBeDisabled();
+    await expect(buyer.getByText("This offer has expired. Ask the seller for a new offer.", { exact: true })).toBeVisible();
+    // Only browser elapsed time advanced; reload/review anchors to chain time again.
+    await buyer.reload();
+    await buyer.getByRole("button", { name: "Review PDC payment", exact: true }).click();
     await buyer
       .getByRole("button", { name: "Approve 100 PDC", exact: true })
       .click();
@@ -451,6 +460,11 @@ test("manufacturer, retailer, buyer and repair center complete a PDC purchase an
         exact: true,
       }),
     ).toBeEnabled();
+    await buyer.clock.fastForward(2 * 86400 * 1000);
+    await expect(buyer.getByRole("button", { name: "Pay 100 PDC and accept", exact: true })).toBeDisabled();
+    await buyer.reload();
+    await buyer.getByRole("button", { name: "Review PDC payment", exact: true }).click();
+    await expect(buyer.getByRole("button", { name: "Pay 100 PDC and accept", exact: true })).toBeEnabled();
     expect(
       (
         await client.readContract({
