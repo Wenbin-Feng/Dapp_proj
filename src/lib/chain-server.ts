@@ -7,11 +7,12 @@ import {
   JsonRpcProvider,
   ZeroHash,
   keccak256,
+  parseEther,
 } from "ethers";
 import { z } from "zod";
 import abi from "./chain-abi.json";
 import type { LocalDatabase } from "./database";
-import type { Claim, Profile, Transfer } from "./types";
+import type { Claim, Profile, Role, Transfer } from "./types";
 import type { ChainStatus, PreparedTransaction } from "./chain-types";
 import { ApiError } from "./http";
 import {
@@ -28,6 +29,7 @@ import {
 } from "./chain-projection";
 
 const globalChain = globalThis as typeof globalThis & {
+  roleRegistration?: Promise<void>;
   passportProviders?: Map<string, JsonRpcProvider>;
   passportSync?: WeakMap<LocalDatabase, Promise<void>>;
 };
@@ -179,6 +181,35 @@ export async function syncChain(db: LocalDatabase) {
     await pending;
   } finally {
     if (locks.get(db) === pending) locks.delete(db);
+  }
+}
+// The administrator signer is available only on the server's loopback demo RPC.
+export async function registerWalletRole(wallet: string, role: Role) {
+  const previous = globalChain.roleRegistration ?? Promise.resolve();
+  const pending = previous.catch(() => {}).then(async () => {
+    const deployment = chainManifest();
+    const provider = await validateDeployment(deployment);
+    const contract = new Contract(deployment.address, abi, provider);
+    const selected = roleNames.indexOf(role);
+    const current = Number(await contract.roles(wallet));
+    if (current === selected) return;
+    if (current !== 0) {
+      throw new ApiError(409, "ROLE_ALREADY_SET",
+        `This wallet is registered as ${roleNames[current]}. Select its registered role to continue.`);
+    }
+    const admin = await provider.getSigner(deployment.administrator);
+    // Fund only the first enrollment on the private demo chain. A retry after
+    // funding but before the grant sees the existing balance.
+    if ((await provider.getBalance(wallet)) === 0n) {
+      await (await admin.sendTransaction({ to: wallet, value: parseEther("0.05") })).wait();
+    }
+    await (await contract.connect(admin).getFunction("grantRole")(wallet, selected)).wait();
+  });
+  globalChain.roleRegistration = pending;
+  try {
+    await pending;
+  } finally {
+    if (globalChain.roleRegistration === pending) delete globalChain.roleRegistration;
   }
 }
 export async function chainStatus(

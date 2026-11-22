@@ -3,8 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { readJson, route } from "@/lib/http";
 import { ROLES } from "@/lib/types";
 import { chainEnabled } from "@/lib/chain-config";
-import { roleNames } from "@/lib/chain-projection";
-import { ApiError } from "@/lib/http";
+import { registerWalletRole } from "@/lib/chain-server";
 export const POST = route(async (request) => {
   const { db, userId, walletAddress } = await requireAuth(request, {
     onboarded: false,
@@ -27,18 +26,6 @@ export const POST = route(async (request) => {
           });
       }),
   );
-  if (chainEnabled()) {
-    const granted =
-      db.get<{ role: number }>(
-        "SELECT role FROM chain_roles WHERE wallet=?",
-        walletAddress,
-      )?.role || 0;
-    if (roleNames[granted] !== input.role)
-      throw new ApiError(
-        403,
-        "CHAIN_ROLE_REQUIRED",
-        "This role has not been granted to your wallet on-chain. Ask the deployment administrator to run npm run chain:grant -- YOUR_ADDRESS YOUR_ROLE, then retry.",
-      );
-  }
+  if (chainEnabled()) await registerWalletRole(walletAddress, input.role);
   return Response.json({ data: db.onboard(userId, walletAddress, input) });
 });

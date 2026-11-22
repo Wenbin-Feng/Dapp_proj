@@ -29,11 +29,6 @@ test.afterAll(() => chainProvider?.destroy());
 // No authentication/business response is intercepted or fabricated.
 async function walletBrowser(browser: Browser, failure?: number) {
   const wallet = Wallet.createRandom();
-  if (chainProvider)
-    await chainProvider.send("hardhat_setBalance", [
-      wallet.address,
-      "0x56BC75E2D63100000",
-    ]);
   const context = await browser.newContext({ baseURL: ORIGIN });
   const external: string[] = [];
   await context.route("**/*", async (route) => {
@@ -163,27 +158,6 @@ async function signIn(page: Page) {
 }
 async function registerRole(page: Page, role: string, name: string) {
   await signIn(page);
-  if (chainProvider) {
-    const account = await page
-      .getByLabel("Connected wallet", { exact: true })
-      .inputValue();
-    const manifest = JSON.parse(
-      readFileSync(process.env.CHAIN_DEPLOYMENT_FILE!, "utf8"),
-    );
-    const c = new Contract(
-      manifest.address,
-      abi,
-      await chainProvider.getSigner(0),
-    );
-    await (
-      await c.grantRole(
-        account,
-        { Manufacturer: 1, Retailer: 2, Customer: 3, "Service Center": 4 }[
-          role
-        ]!,
-      )
-    ).wait();
-  }
   await page.getByRole("button", { name: role, exact: true }).click();
   await page.getByLabel("Display name", { exact: true }).fill(name);
   if (role !== "Customer")
