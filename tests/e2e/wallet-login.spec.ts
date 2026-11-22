@@ -468,6 +468,27 @@ test("all five wallets complete the real product, image, claim and resale lifecy
         b.page.getByText("confirmed", { exact: true }),
       ).toBeVisible();
     }
+    await a.page.goto("/dashboard");
+    const workspace = a.page.getByRole("navigation", {
+      name: "Workspace navigation",
+    });
+    await workspace.getByRole("link", { name: "Verify a product" }).click();
+    await expect(
+      workspace.getByRole("link", { name: "Verify a product" }),
+    ).toHaveAttribute("aria-current", "page");
+    await workspace.getByRole("link", { name: "Product catalog" }).click();
+    await a.page
+      .getByLabel("Search by model, brand or serial number")
+      .fill(serial);
+    await a.page.getByRole("button", { name: "Search", exact: true }).click();
+    await a.page.locator(".product-card").filter({ hasText: serial }).click();
+    await expect(
+      a.page.getByRole("heading", {
+        name: "SQLite Integration Watch",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(workspace).toBeVisible();
     const outsider: BrowserContext = await browser.newContext({
       baseURL: ORIGIN,
     });

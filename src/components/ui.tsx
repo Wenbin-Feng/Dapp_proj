@@ -19,7 +19,7 @@ import {
   warrantyStatus,
   WARRANTY_LABELS,
 } from "@/lib/format";
-import type { Product, PublicProductDetail } from "@/lib/types";
+import type { CatalogProduct, Product, PublicProductDetail } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
 
 export function BrandMark({ className = "" }: { className?: string }) {
@@ -52,6 +52,9 @@ export function PublicHeader() {
         <nav aria-label="Main navigation">
           <Link href="/#how-it-works" className="nav-text">
             How it works
+          </Link>
+          <Link href="/catalog" className="nav-text">
+            Product catalog
           </Link>
           <Link href="/verify" className="nav-text">
             Verify a product
@@ -176,10 +179,16 @@ export function ProductVisual({
     </div>
   );
 }
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  href = `/products/${product.id}`,
+}: {
+  product: CatalogProduct;
+  href?: string;
+}) {
   const status = warrantyStatus(product);
   return (
-    <Link href={`/products/${product.id}`} className="product-card">
+    <Link href={href} className="product-card">
       <ProductVisual path={product.image_path} alt={product.model} />
       <div className="product-card-body">
         <div className="product-card-top">

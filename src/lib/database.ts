@@ -19,6 +19,7 @@ import type {
   OwnershipEvent,
   ProductDetail,
   PublicProductDetail,
+  CatalogProduct,
 } from "./types";
 
 const schema = `
@@ -588,6 +589,28 @@ export class LocalDatabase {
         ),
       };
     });
+  }
+  catalog(query: string, requestedPage: number) {
+    const perPage = 12;
+    const filter = `WHERE instr(lower(model), lower(?)) > 0
+      OR instr(lower(serial_number), lower(?)) > 0`;
+    const total = this.get<{ count: number }>(
+      `SELECT count(*) AS count FROM products ${filter}`,
+      query,
+      query,
+    )!.count;
+    const pages = Math.max(1, Math.ceil(total / perPage));
+    const page = Math.max(1, Math.min(requestedPage, pages));
+    const products = this.all<CatalogProduct>(
+      `SELECT id, serial_number, model, manufacturer_name, image_path,
+        warranty_started_at, warranty_expires_at, claims_used, max_claims
+        FROM products ${filter} ORDER BY created_at DESC, id LIMIT ? OFFSET ?`,
+      query,
+      query,
+      perPage,
+      (page - 1) * perPage,
+    );
+    return { products, page, pages, total };
   }
   publicProduct(query: string): PublicProductDetail {
     return this.transaction(() => {
