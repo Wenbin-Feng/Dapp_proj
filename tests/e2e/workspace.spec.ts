@@ -85,7 +85,9 @@ async function setup(
     const url = new URL(route.request().url());
     const method = route.request().method();
     let data: unknown;
-    if (url.pathname === "/api/me") {
+    if (url.pathname === "/api/chain/status")
+      data = { enabled: false, ready: false };
+    else if (url.pathname === "/api/me") {
       if (delayMe)
         await new Promise((resolve) =>
           setTimeout(resolve, meRequests++ === 0 ? 10 : 250),

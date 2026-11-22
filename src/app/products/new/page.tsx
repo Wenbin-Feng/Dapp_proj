@@ -6,12 +6,15 @@ import { ArrowLeft, ArrowRight, Fingerprint, LoaderCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useWallet } from "@/components/wallet-provider";
 import { EmptyState, ErrorNotice, PageTitle } from "@/components/ui";
+import { pendingChainTransaction } from "@/lib/chain-client";
 import { productGateway } from "@/lib/api-client";
 export default function NewProduct() {
   const { profile } = useWallet();
   const router = useRouter();
   const [model, setModel] = useState("");
   const [serial, setSerial] = useState("");
+  const [manufacturerDraft, setManufacturerDraft] = useState<string | null>(null);
+  const manufacturer = manufacturerDraft ?? profile?.organization_name ?? profile?.display_name ?? "";
   const [days, setDays] = useState("365");
   const [claims, setClaims] = useState("3");
   const [saving, setSaving] = useState(false);
@@ -23,6 +26,7 @@ export default function NewProduct() {
     try {
       const product = await productGateway.register({
         model: model.trim(),
+        manufacturer_name: manufacturer.trim(),
         serial_number: serial.trim(),
         warranty_duration_days: Number(days),
         max_claims: Number(claims),
@@ -70,6 +74,9 @@ export default function NewProduct() {
           >
             <h2>Product details</h2>
             <ErrorNotice error={error} />
+            {error && pendingChainTransaction() && (
+              <a className="nav-text" href="#blockchain-connection">Manage pending transaction ↑</a>
+            )}
             <div className="form-grid">
               <div className="field full-width">
                 <label htmlFor="model">Product model</label>
@@ -94,7 +101,7 @@ export default function NewProduct() {
                   placeholder="Enter the product's unique serial"
                 />
                 <span className="field-hint">
-                  Must be unique across all registered products.
+                  Must be unique. On-chain serials use ASCII letters, digits or punctuation without spaces.
                 </span>
               </div>
               <div className="field">
@@ -133,9 +140,15 @@ export default function NewProduct() {
                 <label htmlFor="manufacturer">Registered manufacturer</label>
                 <input
                   id="manufacturer"
-                  readOnly
-                  value={profile?.organization_name || ""}
+                  required
+                  maxLength={120}
+                  value={manufacturer}
+                  onChange={(event) => setManufacturerDraft(event.target.value)}
+                  aria-describedby="manufacturer-hint"
                 />
+                <span id="manufacturer-hint" className="field-hint">
+                  This name appears on this product’s public passport.
+                </span>
               </div>
             </div>
             <p className="form-note">

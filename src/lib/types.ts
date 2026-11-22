@@ -37,6 +37,18 @@ export interface Product {
   image_path: string | null;
   created_at: string;
 }
+export type CatalogProduct = Pick<
+  Product,
+  | "id"
+  | "serial_number"
+  | "model"
+  | "manufacturer_name"
+  | "image_path"
+  | "warranty_started_at"
+  | "warranty_expires_at"
+  | "claims_used"
+  | "max_claims"
+>;
 export type TransferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 export interface Transfer {
   id: string;
@@ -90,6 +102,7 @@ export interface ProductDetail {
   transfers: Transfer[];
   claims: Claim[];
   services: ServiceRecord[];
+  chain?: ChainProof;
 }
 export interface ServiceCenter {
   id: string;
@@ -106,6 +119,7 @@ export interface MeData {
   wallet_address: string;
 }
 export interface PublicProductDetail {
+  chain?: ChainProof;
   id: string;
   serial_number: string;
   model: string;
@@ -132,4 +146,9 @@ export interface ApiResponse<T> {
 export interface OperationReceipt {
   source: "mock" | "chain";
   transaction_hash: string | null;
+}
+export interface ChainProof {
+  chain_id:number;
+  contract_address:string;
+  transactions:{transaction_hash:string;operation:string;block_number:number;created_at:string}[];
 }

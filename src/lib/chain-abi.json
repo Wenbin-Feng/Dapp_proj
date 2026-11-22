@@ -1,0 +1,728 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "instanceId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "claimId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ProductPassport.ClaimStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "resultHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ClaimResolved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "claimId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "productId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "customer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "center",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "descriptionHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ClaimSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes16",
+        "name": "entityId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "kind",
+        "type": "uint8"
+      }
+    ],
+    "name": "OperationRecorded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "productId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "manufacturer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "serial",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "model",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "manufacturerName",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "warrantyDays",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "maxClaims",
+        "type": "uint16"
+      }
+    ],
+    "name": "ProductRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ProductPassport.Role",
+        "name": "role",
+        "type": "uint8"
+      }
+    ],
+    "name": "RoleGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "transferId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "productId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "TransferRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "operationId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes16",
+        "name": "transferId",
+        "type": "bytes16"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ProductPassport.TransferStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "warrantyStarted",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "warrantyExpires",
+        "type": "uint64"
+      }
+    ],
+    "name": "TransferResolved",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "administrator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "expected",
+        "type": "uint8"
+      },
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "selected",
+        "type": "uint8"
+      }
+    ],
+    "name": "changeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "deploymentId",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      }
+    ],
+    "name": "getClaim",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes16",
+            "name": "productId",
+            "type": "bytes16"
+          },
+          {
+            "internalType": "address",
+            "name": "customer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "center",
+            "type": "address"
+          },
+          {
+            "internalType": "enum ProductPassport.ClaimStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "descriptionHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "resultHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct ProductPassport.Claim",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      }
+    ],
+    "name": "getProduct",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "manufacturer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint32",
+            "name": "warrantyDays",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint16",
+            "name": "maxClaims",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "claimsUsed",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint64",
+            "name": "createdAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "warrantyStarted",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "warrantyExpires",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes16",
+            "name": "pendingTransfer",
+            "type": "bytes16"
+          },
+          {
+            "internalType": "bytes16",
+            "name": "openClaim",
+            "type": "bytes16"
+          },
+          {
+            "internalType": "string",
+            "name": "serial",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "model",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "manufacturerName",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ProductPassport.Product",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      }
+    ],
+    "name": "getTransfer",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes16",
+            "name": "productId",
+            "type": "bytes16"
+          },
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "enum ProductPassport.TransferStatus",
+            "name": "status",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct ProductPassport.Transfer",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "role",
+        "type": "uint8"
+      }
+    ],
+    "name": "grantRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "operations",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "op",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "string",
+        "name": "serial",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "model",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "manufacturerName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint32",
+        "name": "days_",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint16",
+        "name": "limit",
+        "type": "uint16"
+      }
+    ],
+    "name": "registerProduct",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "op",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "productId",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "requestTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "op",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "uint8",
+        "name": "action",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "resultHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "resolveClaim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "op",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "uint8",
+        "name": "action",
+        "type": "uint8"
+      }
+    ],
+    "name": "resolveTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "roles",
+    "outputs": [
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "serialProducts",
+    "outputs": [
+      {
+        "internalType": "bytes16",
+        "name": "",
+        "type": "bytes16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "op",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "id",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "bytes16",
+        "name": "productId",
+        "type": "bytes16"
+      },
+      {
+        "internalType": "address",
+        "name": "center",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "descriptionHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "submitClaim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

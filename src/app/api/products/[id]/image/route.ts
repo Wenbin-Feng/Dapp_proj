@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
+import { dirname } from "node:path";
+import { localImagePath } from "@/lib/local-storage";
 import { requireAuth } from "@/lib/auth";
 import { ApiError, route } from "@/lib/http";
 import { normalizeProductImage } from "@/lib/image-server";
@@ -13,18 +16,8 @@ export async function POST(
     const { id } = await context.params;
     if (!z.uuid().safeParse(id).success)
       throw new ApiError(400, "INVALID_ID", "Invalid product ID.");
-    const { db, userId } = await requireAuth({ roles: ["manufacturer"] });
-    const { data: product, error: readError } = await db
-      .from("dapp_products")
-      .select("id,manufacturer_id,image_path")
-      .eq("id", id)
-      .maybeSingle();
-    if (readError)
-      throw new ApiError(
-        503,
-        "DATABASE_ERROR",
-        "Product storage is not ready. Apply the database migration first.",
-      );
+    const { db, userId } = await requireAuth(req, { roles: ["manufacturer"] });
+    const product = db.product(id);
     if (!product) throw new ApiError(404, "NOT_FOUND", "Product not found.");
     if (product.manufacturer_id !== userId)
       throw new ApiError(
@@ -89,46 +82,41 @@ export async function POST(
         400,
         "INVALID_FILE",
         error instanceof Error &&
-          /^(Compressed|Only static|This image)/.test(error.message)
+        /^(Compressed|Only static|This image)/.test(error.message)
           ? error.message
           : "Choose a valid JPEG, PNG or WebP image under 1 MB.",
       );
     }
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET || "dapp";
     const newPath = `products/${id}/${randomUUID()}.webp`;
-    const storage = db.storage.from(bucket);
-    const { error: uploadError } = await storage.upload(newPath, bytes, {
-      contentType: "image/webp",
-      cacheControl: "31536000",
-      upsert: false,
-    });
-    if (uploadError)
+    const target = localImagePath(newPath);
+    try {
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, bytes, { flag: "wx" });
+    } catch {
+      await unlink(target).catch(() => undefined);
       throw new ApiError(
         503,
         "UPLOAD_FAILED",
         "Image upload failed. Your previous image is unchanged; please retry.",
       );
-    let update = db
-      .from("dapp_products")
-      .update({ image_path: newPath })
-      .eq("id", id)
-      .eq("manufacturer_id", userId);
-    update = product.image_path
-      ? update.eq("image_path", product.image_path)
-      : update.is("image_path", null);
-    const { data: updated, error: updateError } = await update
-      .select("id")
-      .maybeSingle();
-    if (updateError || !updated) {
-      await storage.remove([newPath]);
+    }
+    let updated = false;
+    try {
+      updated = db.replaceImage(userId, id, product.image_path, newPath);
+    } catch {
+      /* Delete the unreferenced file and preserve the old image below. */
+    }
+    if (!updated) {
+      await unlink(target).catch(() => undefined);
       throw new ApiError(
         409,
         "IMAGE_CONFLICT",
         "The product changed during upload. Refresh and try again; the existing image is preserved.",
       );
     }
-    if (product.image_path?.startsWith(`products/${id}/`))
-      await storage.remove([product.image_path]);
+    if (product.image_path?.startsWith(`products/${id}/`)) {
+      await unlink(localImagePath(product.image_path)).catch(() => undefined);
+    }
     return Response.json({ data: { image_path: newPath } });
   })(request);
 }

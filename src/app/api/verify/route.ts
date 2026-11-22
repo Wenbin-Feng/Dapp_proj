@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { getDatabase } from "@/lib/database";
 import { ApiError, route } from "@/lib/http";
-import { getAdmin } from "@/lib/supabase/admin";
-import { publicProduct } from "@/lib/products-server";
-
+import { syncChain, productChainProof } from "@/lib/chain-server";
 export const GET = route(async (request) => {
   const parsed = z
     .string()
@@ -16,5 +15,10 @@ export const GET = route(async (request) => {
       "INVALID_INPUT",
       "Enter a product ID or serial number.",
     );
-  return Response.json({ data: await publicProduct(getAdmin(), parsed.data) });
+  const db = getDatabase();
+  await syncChain(db);
+  const product = db.publicProduct(parsed.data);
+  return Response.json({
+    data: { ...product, chain: productChainProof(db, product.id) },
+  });
 });

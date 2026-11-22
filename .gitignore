@@ -10,3 +10,9 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 tmp/
+data/
+.test-data/
+.playwright-cli/
+output/
+chain/artifacts/
+cache/

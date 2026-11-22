@@ -1,47 +1,79 @@
-# group project business API
+# Local API and business rules
 
-All responses use `{ "data": value }`. Errors use `{ "error": { "code": "...", "message": "..." } }` with the corresponding HTTP status. Responses are never cached. JSON write requests require a same-origin `Origin` header and `Content-Type: application/json`.
+## Ethereum mode (`CHAIN_ENABLED=1`)
 
-Except for `/api/verify`, business endpoints require a server-verified Supabase Ethereum Web3 session and a completed profile. Actor IDs and roles come from the verified session; clients cannot submit them. The service-role client stays in server-only modules. All six `dapp_*` business tables have RLS enabled and no direct permissions for anonymous/authenticated clients. All eight business RPCs, including the authorized repair-record query, are executable only by the backend service role.
+The business mutation endpoints listed below are the legacy SQLite-only interface and return `409 WALLET_TRANSACTION_REQUIRED` in Ethereum mode. Reads, profile editing and image uploads remain HTTP operations. Onboarding grants the chosen role. Authenticated PATCH /api/me accepts a role change for the current wallet and synchronizes it with the contract. See [the Chinese chain guide](blockchain.md).
 
-## Interfaces
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/chain/status` | Mode, deployment identity, readiness, block progress and current wallet's chain role |
+| `POST /api/chain/prepare` | Authenticated strict command; simulates contract call and durably saves private text before returning unsigned transaction data |
+| `POST /api/chain/confirm` | Authenticated operation ID and optional transaction hash; verifies receipt and returns synchronized entity |
+| `GET /api/chain/transaction?hash=...` | Public receipt from the configured contract; full on-chain sender address is public |
 
-| Method and path                    | Input                                                               | Result and authorization                                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `GET /api/dashboard`               | —                                                                   | `DashboardData`: currently owned products and transfers/claims involving the viewer                      |
-| `GET /api/products`                | —                                                                   | `Product[]` currently owned by the viewer                                                                |
-| `POST /api/products`               | `serial_number`, `model`, `warranty_duration_days`, `max_claims`    | `Product`; manufacturers only; initial owner is the manufacturer                                         |
-| `GET /api/products/:id`            | Product UUID                                                        | `ProductDetail`; current owner, manufacturer, transfer participant or assigned claim participant         |
-| `POST /api/products/:id/transfers` | `to_wallet`                                                         | `Transfer`; current owner only; recipient must have completed onboarding                                 |
-| `GET /api/transfers`               | —                                                                   | `Transfer[]` where viewer is sender or recipient                                                         |
-| `POST /api/transfers/:id/action`   | `action`: `accept`, `reject`, `cancel`                              | `Transfer`; recipient accepts/rejects, sender cancels                                                    |
-| `GET /api/claims`                  | —                                                                   | `Claim[]` submitted by viewer or assigned to their service center                                        |
-| `POST /api/claims`                 | `product_id`, `service_center_id`, `description`                    | `Claim`; current customer owner only                                                                     |
-| `POST /api/claims/:id/action`      | `action`: `approve`, `reject`, `complete`; `reason?`, `resolution?` | `Claim`; assigned service center only; rejection needs a reason and completion needs a repair resolution |
-| `GET /api/service-centers`         | —                                                                   | `{ id, organization_name, wallet_address }[]`; onboarded session required                                |
-| `GET /api/verify?query=...`        | Exact product UUID or serial number                                 | `PublicProductDetail`; public, case-insensitive serial lookup, no wildcard search                        |
+Prepare command kinds are `register`, `transfer`, `transferAction`, `claim`, `claimAction`, matching the field names in `src/lib/chain-server.ts`. The signed-in wallet must send the returned `to` and `data` with zero value on chain 31337. No server endpoint signs a business transaction. Product detail and public verification add a `chain` object containing contract address and transaction evidence. Private repair text is excluded from public responses.
 
-Contracts are declared in `src/lib/types.ts` and consumed through the `productGateway` in `src/lib/api-client.ts`. UUIDs identify products, claims and transfers. Serial numbers are trimmed and unique ignoring case. Models/serials allow 1–120 characters, warranty duration 1–36,500 days, maximum claims 1–1,000, and private claim/repair text 1–2,000 characters.
+The remaining sections describe shared rules and the optional database-only mode (`CHAIN_ENABLED=0`).
 
-## Lifecycle rules
+All business APIs use the same Next.js origin. Success responses are `{ data: ... }`; errors are `{ error: { code, message } }`. Private and authentication responses disable caching. State-changing requests require an `Origin` matching the application's browser-facing host and reject `Sec-Fetch-Site: cross-site`.
 
-- Transfers follow manufacturer → retailer → customer → another customer. A pending transfer does not change ownership. Repeating the same pending offer returns its existing record. The sender can cancel and the recipient can reject; terminal results remain immutable.
-- Product rows are locked for every transfer/claim mutation. At most one pending transfer or one submitted/approved claim may exist, and these two workflows exclude each other. Product locks and partial unique indexes prevent two concurrent workflows from being admitted.
-- Warranty starts when the first retailer → customer transfer is accepted. Later transfers keep the original start, expiration and used count. Registration, retailer acquisition and rejected offers do not start warranty.
-- Claims transition submitted → approved → completed, or submitted → rejected. Rejected claims consume no entitlement. Only completion increments the used count and creates a repair record, once. Duplicate terminal actions return the existing result without overwriting text or adding history.
-- New claims require `now < warranty_expires_at` and `claims_used < max_claims`. Eligibility is checked at submission. A valid admitted claim may be approved and completed after expiration. Expiration is evaluated at request time; no background job is needed.
-- The four roles are freely chosen once at onboarding for the classroom prototype. Repeated onboarding never changes the role or wallet. Later profile edits change only display/organization names.
+## Wallet authentication
 
-## Privacy and replacement boundary
+| Endpoint                   | Input                                         | Result                                                                |
+| -------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| `POST /api/auth/challenge` | `wallet_address`, positive integer `chain_id` | `{ id, message }`, plus a five-minute HttpOnly challenge cookie       |
+| `POST /api/auth/verify`    | `id`, Ethereum `personal_sign` signature      | `{ profile, wallet_address }`, plus a 24-hour HttpOnly session cookie |
+| `POST /api/auth/logout`    | No body needed                                | Revokes the session and clears both cookies                           |
+| `GET /api/me`              | Session cookie                                | `{ profile, wallet_address }`; profile is null until onboarding       |
 
-The public verifier returns product identity, public manufacturer name, warranty facts and masked ownership history. It excludes full wallet addresses, profile IDs, names of customers, private claim descriptions/reasons/resolutions, and all service records. Product and history UUIDs are public identifiers, not user UUIDs.
+The server constructs the login message, including origin, address, chain ID, random nonce, issue time and expiry. Verification checks the stored message, browser-cookie hash, origin, expiry and recovered signer, then consumes the challenge in one SQLite transaction. It stores only hashes of random session tokens. A signed message cannot be replayed, and a client cannot choose a different acting user ID. The chain ID identifies the wallet's selected network; no network RPC or blockchain transaction is sent.
 
-Private product details include claims only when the viewer submitted them or is the assigned service center. Repair records are visible to the current owner; original claimants and their assigned centers retain access to their own repairs. The `dapp_visible_service_records` RPC joins the current product owner and claim participants in the same statement as the private-record query, preventing an earlier ownership snapshot from authorizing records created after a concurrent transfer. A previous owner cannot read another owner's private claim text. Historical participants and the manufacturer can inspect provenance but receive no unrelated private claim or repair descriptions.
+## Business endpoints
 
-The current implementation records database operations, not blockchain transactions. To integrate the eventual contract, replace the gateway/backend business commands and reconcile accepted ownership/claim events with the database; keep personal profiles and private repair text off-chain. Do not fabricate transaction hashes. The API authentication and privacy checks remain necessary when replacing the mock business adapter.
+JSON mutations use strict schemas, reject extra fields and limit request bodies to 64 KiB. The image endpoint instead bounds multipart data. Wallet identity always comes from the verified session.
 
-## Database installation and verification
+| Endpoint                               | Input                                                               | Permission / result                                                  |
+| -------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `POST /api/onboarding`                 | `display_name`, `role`, `organization_name?`                        | Verified wallet; one-time role selection; `Profile`                  |
+| `PATCH /api/me`                        | `display_name`, `organization_name`                                 | Onboarded user; names only                                           |
+| `GET /api/dashboard`                   | —                                                                   | Own products and participating transfers/claims                      |
+| `GET /api/products`                    | —                                                                   | Own `Product[]`                                                      |
+| `POST /api/products`                   | `serial_number`, `model`, `warranty_duration_days`, `max_claims`    | Manufacturer; initial owner is the manufacturer                      |
+| `GET /api/products/:id`                | Product UUID                                                        | Current owner, manufacturer or historical transfer/claim participant |
+| `POST /api/products/:id/image`         | Multipart field `file`                                              | Registering manufacturer; `{ image_path }`                           |
+| `GET /api/images/:productId/:filename` | Validated UUID path ending in `.webp`                               | Public image bytes; missing file is 404                              |
+| `POST /api/products/:id/transfers`     | `to_wallet`                                                         | Current owner; registered recipient required                         |
+| `GET /api/transfers`                   | —                                                                   | Sender/recipient's transfers                                         |
+| `POST /api/transfers/:id/action`       | `action`: `accept`, `reject`, `cancel`                              | Recipient accepts/rejects; sender cancels                            |
+| `GET /api/claims`                      | —                                                                   | Claimant/assigned center's claims                                    |
+| `POST /api/claims`                     | `product_id`, `service_center_id`, `description`                    | Current customer owner                                               |
+| `POST /api/claims/:id/action`          | `action`: `approve`, `reject`, `complete`; `reason?`, `resolution?` | Assigned center; rejection/completion require explanatory text       |
+| `GET /api/service-centers`             | —                                                                   | Onboarded session; center IDs, organization names, wallet addresses  |
+| `GET /api/verify?query=...`            | Exact product UUID or serial                                        | Public allowlisted product fields and masked history                 |
 
-Apply `supabase/migrations/202610140001_initial.sql` using an authorized Supabase SQL session. It creates only names prefixed `dapp_`, does not drop user tables or storage buckets, and is safe to reapply. It expects Supabase's `auth.users` and standard `anon`, `authenticated`, `service_role` roles.
+Response types are in `src/lib/types.ts`; the browser gateway is `src/lib/api-client.ts`. Models and serials allow 1–120 characters; serials are trimmed and unique using JavaScript lowercase normalization. Warranty duration is 1–36,500 days, allowance 1–1,000, and private claim/repair text 1–2,000 characters. Public verification is an exact lookup, including literal punctuation; it is not wildcard search.
 
-`tests/database.test.ts` applies the actual migration twice to an isolated PGlite PostgreSQL database and runs `tests/database-lifecycle.sql`. Scenarios cover role/owner authorization, actor-parameter RPC access restrictions, initial registration, case-insensitive serial uniqueness, transfer confirmation/rejection/cancellation, workflow exclusion, resale, entitlement expiry/exhaustion, service completion after expiry, idempotency, previous-owner denial, and private repair visibility for current/previous owners, assigned centers and nonparticipants. Test accounts exist only inside a rolled-back local transaction.
+## SQLite lifecycle rules
+
+`src/lib/database.ts` initializes schema version 1 automatically. Unknown newer schema versions are rejected. Connections enable foreign keys, WAL mode and a five-second busy timeout. Mutations use `BEGIN IMMEDIATE` to serialize writers; unique partial indexes also enforce one pending transfer and one open claim per product. This is SQLite database-level write serialization, not PostgreSQL row locks.
+
+- Transfers follow manufacturer → retailer → customer → customer. Pending offers preserve ownership; repeating the same offer returns its pending record. Accept, reject and cancel results are immutable and idempotent.
+- Pending transfers and submitted/approved claims exclude each other. Authorization, entitlement checks, state updates and history insertion occur in the same transaction.
+- The first accepted retailer → customer transfer starts warranty. Resale preserves start, expiry and used allowance.
+- Claims transition submitted → approved → completed, or submitted → rejected. Only completion creates a service record and increments usage, exactly once. Rejected claims consume nothing.
+- New submissions require `now < expiry` and remaining allowance. A previously admitted claim can finish after expiry. No background expiry job is necessary.
+- Roles are selected once. Later profile changes cannot rebind wallets or elevate roles. Organization self-registration remains a prototype limitation.
+
+Private details query ownership and record visibility in one database transaction. Current owners can read recorded repairs; previous owners and assigned centers retain only repairs associated with their claims. Claim descriptions, decisions and resolutions are limited to the original claimant and assigned center. Manufacturers and transfer participants can view provenance but not unrelated private repairs.
+
+The public verifier explicitly excludes user UUIDs, full wallet addresses, customer names, all claims and repair descriptions. Product/history IDs and manufacturer organization names are public. Images are intentionally public and are served from validated local paths, never arbitrary filesystem paths.
+
+Image writes occur outside the SQLite transaction while Sharp/filesystem work runs. A conditional database update compares the original image path, and a losing request removes its new file. Successful replacement attempts to remove the old image. An abrupt process crash between filesystem and database operations may leave an unreferenced file; images and database require coordinated backup.
+
+## Tests and future blockchain boundary
+
+`tests/database.test.ts` exercises the actual SQLite implementation, including persistence after closing/reopening, role/ownership checks, workflow conflicts, warranty boundaries, private visibility and transaction rollback. `tests/auth.test.ts` and `tests/auth-route.test.ts` exercise real signatures, hashed sessions, route schemas, logout and local image files. Tests never require a cloud service.
+
+The browser lifecycle uses five independently signed wallets against actual APIs and a dedicated SQLite file. Other UI fixture tests remain explicitly scoped to presentation behavior.
+
+No blockchain state, transaction hashes or smart contracts are produced. To satisfy the course's decentralized implementation requirement, move authoritative ownership, warranty entitlement and claim decisions to the chosen contract platform, add deployment and contract tests, and reconcile events into this local database. Keep personal profiles and private repair text off-chain and define the intended disclosure of public wallet histories.

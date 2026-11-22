@@ -94,7 +94,7 @@ export default function Login() {
               ) : (
                 <>
                   <Wallet size={18} aria-hidden="true" />
-                  Continue with MetaMask
+                  {wallet.needsAccountPermission ? "Review MetaMask connection" : "Continue with MetaMask"}
                   <ArrowUpRight size={17} aria-hidden="true" />
                 </>
               )}
@@ -103,8 +103,8 @@ export default function Login() {
           <div className="auth-info">
             <ShieldCheck size={17} aria-hidden="true" />
             <span>
-              Check the message in your wallet before signing. Your role and
-              profile will be linked to this wallet.
+              Check the site address in MetaMask. If your wallet flags this site
+              as unsafe, cancel the request.
             </span>
           </div>
           <p className="form-note">

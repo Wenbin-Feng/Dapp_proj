@@ -13,7 +13,7 @@ import {
 import { useWallet } from "@/components/wallet-provider";
 import { api } from "@/lib/api-client";
 import { formatDate, shortWallet } from "@/lib/format";
-import { ROLE_LABELS, type Profile } from "@/lib/types";
+import { ROLE_LABELS, ROLES, type Role, type Profile } from "@/lib/types";
 
 export default function ProfilePage() {
   const { profile } = useWallet();
@@ -30,6 +30,7 @@ export default function ProfilePage() {
 
 function ProfileForm({ profile }: { profile: Profile }) {
   const { refreshProfile, error: walletError } = useWallet();
+  const [role, setRole] = useState(profile.role);
   const [name, setName] = useState(profile.display_name);
   const [organization, setOrganization] = useState(
     profile.organization_name || "",
@@ -37,8 +38,9 @@ function ProfileForm({ profile }: { profile: Profile }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const needsOrganization = profile.role !== "customer";
+  const needsOrganization = role !== "customer";
   const changed =
+    role !== profile.role ||
     name.trim() !== profile.display_name ||
     organization.trim() !== (profile.organization_name || "");
 
@@ -63,11 +65,13 @@ function ProfileForm({ profile }: { profile: Profile }) {
       const updated = await api<Profile>("/api/me", {
         method: "PATCH",
         body: JSON.stringify({
+          role,
           display_name: name.trim(),
           organization_name: organization.trim() || null,
         }),
       });
       saved = true;
+      setRole(updated.role);
       setName(updated.display_name);
       setOrganization(updated.organization_name || "");
       await refreshProfile();
@@ -139,6 +143,20 @@ function ProfileForm({ profile }: { profile: Profile }) {
             </span>
           </div>
           <div className="field">
+            <label htmlFor="profile-role">Account role</label>
+            <select id="profile-role" value={role} disabled={saving}
+              aria-describedby="profile-role-hint" onChange={event => {
+                setRole(event.target.value as Role);
+                setSuccess(false);
+                setError(null);
+              }}>
+              {ROLES.map(value => <option key={value} value={value}>{ROLE_LABELS[value]}</option>)}
+            </select>
+            <span id="profile-role-hint" className="field-hint">
+              Save your role to switch workspace tools with this wallet.
+            </span>
+          </div>
+          <div className="field">
             <label htmlFor="profile-organization-name">
               Organization name{!needsOrganization && " (optional)"}
             </label>
@@ -174,18 +192,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
             />
             <span id="profile-wallet-hint" className="field-hint">
               This is the wallet you signed in with.
-            </span>
-          </div>
-          <div className="field">
-            <label htmlFor="profile-role">Account role</label>
-            <input
-              id="profile-role"
-              readOnly
-              value={ROLE_LABELS[profile.role]}
-              aria-describedby="profile-role-hint"
-            />
-            <span id="profile-role-hint" className="field-hint">
-              Your role was selected when this account was created.
             </span>
           </div>
           <div className="form-actions">

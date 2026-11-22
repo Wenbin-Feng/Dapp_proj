@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -19,10 +19,12 @@ import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
-import { Loading, Logo } from "./ui";
+import { Loading, Logo, PublicHeader } from "./ui";
+import { ChainNotice } from "./chain-notice";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/catalog", label: "Product catalog", icon: Box },
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
@@ -33,6 +35,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const navigationToggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        navigationToggle.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   useEffect(() => {
     if (!wallet.loading && !wallet.connecting) {
       if (!wallet.address) router.replace("/login");
@@ -58,9 +72,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="mobile-header">
         <Logo />
         <button
+          ref={navigationToggle}
           className="button-icon"
           aria-label={open ? "Close navigation" : "Open navigation"}
           aria-expanded={open}
+          aria-controls="workspace-sidebar"
           onClick={() => setOpen(!open)}
         >
           {open ? <X /> : <Menu />}
@@ -73,7 +89,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
+      <aside
+        id="workspace-sidebar"
+        className={`sidebar ${open ? "sidebar-open" : ""}`}
+      >
         <div className="sidebar-brand">
           <Logo />
           <span className="workspace-tag">PRODUCT PASSPORT</span>
@@ -126,6 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main id="main-content" className="app-main">
+        <ChainNotice />
         <div className="workspace-topbar">
           <span>
             <span className="status-dot" /> Wallet connected
@@ -153,5 +173,18 @@ function PublicHeaderFallback() {
         Verify a product
       </Link>
     </div>
+  );
+}
+
+export function PassportShell({ children }: { children: ReactNode }) {
+  const { profile } = useWallet();
+  if (profile) return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <PublicHeader />
+      <main id="main-content" className="verify-main">
+        {children}
+      </main>
+    </>
   );
 }

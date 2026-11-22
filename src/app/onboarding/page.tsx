@@ -35,6 +35,21 @@ export default function Onboarding() {
   const wallet = useWallet();
   const router = useRouter();
   const [role, setRole] = useState<Role>("customer");
+  const [assignedRole, setAssignedRole] = useState<Role | null>(null);
+  useEffect(() => {
+    let active = true;
+    setAssignedRole(null);
+    if (wallet.address) {
+      void api<{walletRole?: string}>("/api/chain/status").then(status => {
+        const assigned = ROLES.find(value => value === status.walletRole);
+        if (active && assigned) {
+          setAssignedRole(assigned);
+          setRole(assigned);
+        }
+      }).catch(() => {}); // The server checks the role again when the form is saved.
+    }
+    return () => { active = false; };
+  }, [wallet.address]);
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [saving, setSaving] = useState(false);
@@ -126,7 +141,8 @@ export default function Onboarding() {
                       type="button"
                       key={item}
                       aria-pressed={role === item}
-                      onClick={() => setRole(item)}
+                      disabled={assignedRole !== null && assignedRole !== item}
+                      onClick={() => { setError(null); setRole(item); }}
                     >
                       <Icon size={24} aria-hidden="true" />
                       <strong>{ROLE_LABELS[item]}</strong>
@@ -141,8 +157,7 @@ export default function Onboarding() {
               </div>
             </fieldset>
             <div className="notice notice-info">
-              {descriptions[role]} Your role is fixed once this profile is
-              saved.
+              {descriptions[role]} You can change your role later in My profile.
             </div>
             <div className="form-grid">
               <div className="field">

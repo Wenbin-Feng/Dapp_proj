@@ -22,6 +22,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { ImageUploader } from "@/components/image-uploader";
 import { ProductQr } from "@/components/qr-code";
+import { ChainProof } from "@/components/chain-proof";
 import { useWallet } from "@/components/wallet-provider";
 import {
   Badge,
@@ -510,6 +511,7 @@ function ProductView({ id }: { id: string }) {
                 )}
               </div>
               <aside className="detail-aside">
+                <ChainProof proof={detail.chain} />
                 <section className="panel">
                   <div className="section-title">
                     <ShieldCheck size={19} aria-hidden="true" />

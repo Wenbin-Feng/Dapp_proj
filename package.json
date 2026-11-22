@@ -3,20 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "chain:compile": "node scripts/chain-compile.mjs",
+    "chain:node": "hardhat node --hostname 127.0.0.1 --port 8545",
+    "chain:deploy": "node scripts/chain-deploy.mjs",
+    "chain:grant": "node scripts/chain-grant-role.mjs",
+    "test:chain": "node scripts/chain-test.mjs",
+    "test:chain:e2e": "node scripts/chain-test.mjs --browser",
+    "chain:fund": "node scripts/chain-fund.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "0.12.7",
-    "@supabase/supabase-js": "2.117.3",
+    "ethers": "^6.15.0",
     "lucide-react": "^0.577.0",
-    "next": "16.4.0",
+    "next": "^16.4.6",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -25,13 +33,17 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.9",
     "@playwright/test": "^1.58.0",
     "@types/node": "^24.0.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "hardhat": "3.22.0",
+    "solc": "0.8.38",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.0"
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "tmp": "^0.2.7"
   }
 }

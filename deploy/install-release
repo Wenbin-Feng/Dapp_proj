@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+base=/srv/dapp/releases
+exec 9>"$base/.lock"
+flock 9
+target=$(mktemp -d "$base/build-XXXXXXXX")
+chmod 755 "$target"
+tar xzf - --no-same-owner -C "$target"
+test -s "$target/server.js"
+test -d "$target/.next/static"
+previous=$(readlink "$base/current" || true)
+switch() { ln -sfn "$1" "$base/target"; mv -Tf "$base/target" "$base/current"; sudo -n /usr/bin/systemctl restart dapp-web; }
+switch "$target"
+for i in {1..25}; do
+  if curl -fsS -m 4 http://127.0.0.1:3105/api/chain/status 2>/dev/null | /opt/dapp/bin/node -e 'let s="";process.stdin.on("data",v=>s+=v).on("end",()=>{try{process.exit(JSON.parse(s).data.ready?0:1)}catch{process.exit(1)}})'; then
+    for dir in "$base"/build-*; do
+      if [[ "$dir" != "$target" && "$dir" != "$previous" && -d "$dir" ]]; then rm -rf -- "$dir"; fi
+    done
+    exit 0
+  fi
+  sleep 2
+done
+if [[ -n "$previous" ]]; then switch "$previous"; fi
+exit 1
