@@ -1,75 +1,94 @@
-# group project — Product Provenance & Warranty
+# Product Provenance & Warranty — SQLite + Ethereum
 
-An English, dark-themed product passport application for COMP5565. Four wallet roles cover product registration, retail delivery, resale, and warranty service.
+COMP5565 产品溯源与保修项目。Next.js / React 提供界面，SQLite 保存登录、私密维修文本、图片索引和链上事件的查询副本；Solidity 合约负责产品登记、所有权转移、保修期限、审批与维修次数。MetaMask 对业务交易签名，Hardhat 本地 Ethereum 节点执行交易并返回真实回执。无需 Supabase。
 
-The default product backend uses Next.js and Supabase transaction functions. Optional test-chain mode adds fixed-supply PDC/PDQ, a Uniswap V2 pool with LP deposits/withdrawals, and atomic PDC product purchases with verified event indexing. MetaMask authenticates the wallet and separately signs chain transactions. Start with [demo-chain setup](docs/demo-chain.md) and [product settlement/operations](docs/product-settlement.md); chain mode requires its own deployment and additive SQL setup.
+**完整中文操作步骤见 [区块链运行与演示指南](docs/blockchain.md)。** 旧 Supabase 教程不适用于当前运行模式。
 
-## Run locally
+本次验证结果见 [链上集成验证记录](docs/blockchain-validation.md)：91 项自动化测试及生产构建通过。
 
-Requires Node.js 24 LTS and npm (`.nvmrc`, CI and Vercel all use Node 24). Run from this directory:
+## 启动
 
-```sh
+需要 Node.js **24.x**、npm、MetaMask。以下命令均在项目目录执行；保持节点和网页终端运行。
+
+```powershell
+cd F:\Project\Dapps\Dapp_proj-main
 npm ci
-cp .env.example .env.local
-npm run dev
 ```
 
-Open http://localhost:3000. The local `.env.local` has been configured for the supplied project; do not commit or share that file. For another machine, fill in the URL, publishable key, and server-only secret key. Product images use the `dapp` bucket.
+首次配置：复制 `.env.example` 为 `.env.local`（已有文件时只补充缺少项），保持 `CHAIN_ENABLED=1`。
 
-## Supabase setup (required before signing in)
+终端 1：
 
-1. Open the project's **SQL Editor**, create a query, paste the complete contents of `supabase/migrations/202610140001_initial.sql`, and run it. This creates the application's prefixed tables and transaction functions without deleting unrelated data. It can be executed again safely.
-2. Under **Authentication → Sign In / Providers**, enable **Web3 / Ethereum**.
-3. Under **Authentication → URL Configuration**, set the local site URL to `http://localhost:3000` and add `http://localhost:3000/**` to Redirect URLs. If using `127.0.0.1`, add that URL separately. Add the actual HTTPS domain when deploying.
-4. The existing **public** Storage bucket is named `dapp`. Public retrieval is intentional for product display images. Keep anonymous writes disabled: all uploads go through authenticated Next.js endpoints, using the secret key only on the server. Suggested bucket restrictions: 1 MB; `image/webp`, `image/jpeg`, `image/png`. The upload endpoint independently enforces these restrictions.
+```powershell
+npm run chain:node
+```
 
-The client publishable key cannot create database tables or enable Auth providers. The initial remote schema/provider setup therefore requires the Dashboard or a separate database-management connection; the supplied app keys alone are insufficient.
+终端 2：
 
-## First login and roles
+```powershell
+npm run chain:compile
+npm run chain:deploy
+npm run dev -- --port 3001
+```
 
-Use a browser with the MetaMask extension. Connect, approve the login message signature (no payment), and fill in a display name and role. Organization roles also need an organization name. A wallet has one account; its role is fixed after registration. Role self-selection is an explicit classroom-prototype choice. A production deployment should authorize organization roles independently.
+打开 <http://localhost:3001>。MetaMask 本地网络 RPC 为 `http://127.0.0.1:8545`，Chain ID 为 **31337**，币种为 ETH；工作区的 **Connect local network** 可协助添加/切换。
 
-Only the display/organization names can subsequently be edited. The server derives wallet ownership from the verified Supabase Web3 identity; it never trusts a wallet address or actor ID supplied in a request. Changing the connected MetaMask account signs out the previous app session and requires a fresh wallet login.
+## 给自己的测试钱包授权
 
-## Demonstration sequence
+准备制造商、零售商、两名消费者、服务中心五个钱包。用实际的**公开地址**替换下面占位符，分别授权及领取本地 gas；不要将私钥填进命令或环境文件。
 
-Use five test wallets: Manufacturer, Retailer, Customer A, Customer B, and Service Center. Complete onboarding for each before transferring products to it.
+```powershell
+npm run chain:grant -- 0x你的钱包地址 manufacturer
+npm run chain:fund -- 0x你的钱包地址
+```
 
-1. Manufacturer registers an electronics product and optionally uploads its image.
-2. Manufacturer requests a transfer to the retailer's wallet; retailer accepts it.
-3. Retailer requests delivery to Customer A; Customer A accepts. This starts warranty coverage.
-4. Customer A chooses the registered service center and submits a warranty claim.
-5. The assigned service center approves and completes the repair, providing a service description. Only completion consumes a claim allowance; rejection requires a reason and consumes none.
-6. Customer A transfers to Customer B, who accepts. Remaining coverage and service history are retained.
-7. Visit `/verify` without signing in, using the serial number, product ID, or generated QR link. This exposes only product information and masked ownership events.
+角色值：`manufacturer`、`retailer`、`customer`、`service_center`。每个地址只授予一次，角色不可更改；需要另一角色时使用另一个测试地址。`chain:fund` 从本地节点管理员发送 2 个测试 ETH，没有真实货币价值。登录签名不消耗 gas；登记、转让和保修操作需要确认交易。
 
-A pending transfer blocks warranty submission. A submitted/approved claim blocks ownership transfer. Submitted claims keep their entitlement if warranty expires during processing. Exact expiry or claim exhaustion prevents new submissions.
+## 演示顺序
 
-## Product images
+1. 五个钱包分别登录，填写与链上授权一致的角色和资料。
+2. 制造商登记产品，配置保修天数、维修次数，可上传公开图片。
+3. 制造商发起转移，零售商接受；零售商发起转移，消费者 A 接受。首次零售交付开始保修。
+4. 消费者 A 提交保修申请；指定服务中心批准、填写结果、完成维修。完成才扣减一次额度。
+5. A 转售给 B，B 接受；保修日期、已用次数和维修历史保留。
+6. 产品页的 **Blockchain record** 可打开实际交易回执；`/verify` 和二维码供未登录用户查询。
 
-Select a JPEG, PNG, or WebP under 10 MB and 25 megapixels. The browser corrects orientation, preserves proportions and transparency, scales the longest edge to at most 1600 pixels, and encodes WebP at initial quality 0.82. It progressively reduces quality/dimensions toward 500 KB; the hard upload limit is 1 MB. No uncompressed fallback is uploaded silently.
+同一浏览器标签页共享登录 cookie。切换身份时先退出、切换 MetaMask 账户、重新签名登录；并排演示使用不同浏览器配置文件。
 
-Next.js verifies manufacturer permissions, bounds the request, decodes the real file with Sharp, strips source metadata and re-encodes a static WebP. Stored paths are `products/<product-id>/<random-id>.webp`. Replacements receive new URLs to avoid stale CDN content; a failed update retains the prior image. Database rows store object paths rather than user-supplied URLs.
+## 数据与节点重启
 
-## Checks
+旧数据库 `data/dapp.sqlite` 保留。链上模式每次新部署使用独立的 `data/chain/passport-*.sqlite`，路径记录在 `data/chain/deployment.json` 中；旧产品没有自动伪装成链上产品，需要在新部署登记。
 
-```sh
+**Hardhat 开发链是内存链。** 仅重启网页不丢链上状态；关闭节点后重启会重置链。此时执行 `npm run chain:deploy -- --new` 创建新合约和新 SQLite 副本，再刷新网页、重新授权钱包并登录。旧数据库不会被删除。仅备份 SQLite 无法恢复已经重置的区块链，演示期间应保持节点运行。
+
+`CHAIN_ENABLED=0` 可回到旧的纯 SQLite 模式，该模式不产生链上交易。见 [纯 SQLite 操作记录](docs/sqlite-only.md)。两种模式的数据不自动合并。
+
+## 验证
+
+```powershell
 npm run typecheck
-npm run contracts:test
 npm test
+npm run test:chain
 npx playwright install chromium
 npm run test:e2e
+npm run test:chain:e2e
 npm run build
+npm audit --omit=dev
 ```
 
-Tests include actual PostgreSQL migrations/RPCs, Hardhat contracts and receipt-to-index integration, image normalization, warranty boundaries, request origins, and wallet identity rules. Browser tests execute real Hardhat transfers, swaps, LP operations and product settlement/repair, using isolated identity/HTTP fixtures and PostgreSQL event reduction. They do not modify cloud Supabase or replace real MetaMask/cloud acceptance testing.
+普通浏览器测试使用 3003 端口，链上浏览器测试使用 3002 端口，独立测试节点使用 18545。测试目录 `.test-data/` 与演示数据隔离。浏览器两套测试应依次运行，避免共用 Next 开发构建目录。链上测试包含真实交易、权限、额度、到期、私密文本、事件重放、回执恢复和链重组检测。
 
-For the separate production acceptance run, seeded QA product links, coverage and explicit manual reproduction commands, see [the live QA report](docs/qa/2026-10-25.md). Live acceptance creates dedicated QA identities and data, requires opt-in flags, and never runs in CI. Test wallet keys stay in ignored local files.
+## 实现与范围
 
-## Deployment
+| 文件 | 用途 |
+| --- | --- |
+| `contracts/ProductPassport.sol` | 链上角色、产品、交接、保修和维修状态机 |
+| `src/lib/chain-server.ts` | 交易准备、回执核验、事件同步 |
+| `src/lib/chain-projection.ts` | 链上事件写入 SQLite 查询副本 |
+| `src/lib/chain-client.ts` | MetaMask 发送交易、等待确认、失败恢复 |
+| `scripts/chain-*.mjs` | 编译、部署、授权、测试资金、隔离测试 |
+| `docs/blockchain.md` | 中文使用指南、故障处理、设计与限制 |
 
-The repository uses `main`/feature branches for development and `release` for production. Every push to `release` runs checks, then deploys to Vercel when its credentials are configured. Other branches run CI without production deployment. See [the deployment setup guide](docs/deployment.md) for the one-time Vercel/GitHub setup and branch commands.
+此版本完成本地 Ethereum 集成，尚未部署公共测试网或主网，也未接受独立合约安全审计。钱包地址、产品元数据及交易关系在链上公开；维修正文仅在 SQLite，链上为加盐承诺哈希。组织资质由部署管理员线下核实后授权。不要将本地节点暴露到公网。
 
-Use a Node.js-capable Next.js host (including Vercel); static export cannot run the API. Configure the same environment variables and an HTTPS app URL. The secret key must never use a `NEXT_PUBLIC_` prefix. Set Auth redirect URLs for the deployed hostname. On deployment, use a newly rotated secret key instead of credentials that have been pasted into a conversation.
-
-Private app tables have RLS enabled and deny direct anonymous/authenticated table access. Trusted server routes authorize each request; public verification returns masked ownership and no private repair descriptions or user IDs. Database mode uses PostgreSQL row locks and transaction functions; chain mode uses contract-enforced ownership/payment/warranty rules, while Supabase stores verified query projections and private repair text. Both retain the classroom prototype's one-time self-selected roles.
+真实环境文件、数据库、节点日志和运行产物均在忽略规则中。当前项目文件夹没有 Git 元数据；没有创建提交或写入 Git 历史。

@@ -20,14 +20,9 @@ import {
   StatusBadge,
   SuccessNotice,
 } from "@/components/ui";
-import { useProductGateway } from "@/components/product-gateway";
-import { PaidOffer } from "@/components/paid-offer";
-import { TransactionLink } from "@/components/demo-chain-ui";
-import { displayAmount } from "@/lib/chain/amounts";
-import type { Hash } from "viem";
+import { productGateway } from "@/lib/api-client";
 import { formatDate, shortWallet } from "@/lib/format";
 export default function Transfers() {
-  const productGateway = useProductGateway();
   const { profile } = useWallet();
   const { data, loading, error, reload } = useDashboard();
   const [filter, setFilter] = useState("all");
@@ -184,61 +179,30 @@ export default function Transfers() {
                           </td>
                           <td>
                             <StatusBadge status={transfer.status} />
-                            {transfer.price_pdc &&
-                              BigInt(transfer.price_pdc) > 0n && (
-                                <p className="small">
-                                  {displayAmount(
-                                    BigInt(transfer.price_pdc),
-                                    18,
-                                  )}{" "}
-                                  PDC
-                                </p>
-                              )}
-                            {transfer.expires_at && (
-                              <p className="small muted">
-                                Expires {formatDate(transfer.expires_at)}
-                              </p>
-                            )}
-                            {transfer.transaction_hash && (
-                              <TransactionLink
-                                hash={transfer.transaction_hash as Hash}
-                              />
-                            )}
                           </td>
                           <td>
                             {transfer.status === "pending" ? (
                               <div className="button-row">
                                 {incoming ? (
                                   <>
-                                    {transfer.price_pdc &&
-                                    BigInt(transfer.price_pdc) > 0n ? (
-                                      <PaidOffer
-                                        transfer={transfer}
-                                        disabled={busy !== null}
-                                        accept={() =>
-                                          action(transfer.id, "accept")
-                                        }
-                                      />
-                                    ) : (
-                                      <button
-                                        className="button button-small"
-                                        disabled={busy !== null}
-                                        onClick={() =>
-                                          void action(transfer.id, "accept")
-                                        }
-                                      >
-                                        {busy === transfer.id ? (
-                                          <LoaderCircle
-                                            size={14}
-                                            className="spinner"
-                                            aria-hidden="true"
-                                          />
-                                        ) : (
-                                          <Check size={14} aria-hidden="true" />
-                                        )}
-                                        Accept
-                                      </button>
-                                    )}
+                                    <button
+                                      className="button button-small"
+                                      disabled={busy !== null}
+                                      onClick={() =>
+                                        void action(transfer.id, "accept")
+                                      }
+                                    >
+                                      {busy === transfer.id ? (
+                                        <LoaderCircle
+                                          size={14}
+                                          className="spinner"
+                                          aria-hidden="true"
+                                        />
+                                      ) : (
+                                        <Check size={14} aria-hidden="true" />
+                                      )}
+                                      Accept
+                                    </button>
                                     <button
                                       className="button button-ghost button-small"
                                       disabled={busy !== null}

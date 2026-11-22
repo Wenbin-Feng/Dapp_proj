@@ -1,8 +1,3 @@
-.demo-stack { display: grid; gap: 20px; }
-.demo-stack .panel > h2 { margin-bottom: 12px; }
-.demo-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
-.demo-row > div { min-width: 0; }
-@media (max-width: 600px) { .demo-row { align-items: flex-start; flex-direction: column; } }
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1192,6 +1187,8 @@ select:focus {
 }
 .product-visual {
   background: radial-gradient(ellipse, #1b3140, #101c2d 85%);
+  width: 100%;
+  min-width: 0;
   min-height: 210px;
   aspect-ratio: 1.45;
   display: grid;
@@ -1575,6 +1572,12 @@ td .button-row {
   gap: 26px;
   align-items: start;
 }
+.detail-main,
+.detail-aside,
+.verify-side,
+.verify-results > .panel {
+  min-width: 0;
+}
 .detail-main > .product-visual {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1604,7 +1607,7 @@ td .button-row {
 }
 .facts-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 23px;
   margin: 0;
 }
@@ -2392,6 +2395,7 @@ td .button-row {
     z-index: 70;
   }
   .sidebar {
+    visibility: hidden;
     transform: translateX(-100%);
     transition: transform 0.2s;
     width: 270px;
@@ -2399,6 +2403,7 @@ td .button-row {
     padding-top: 22px;
   }
   .sidebar-open {
+    visibility: visible;
     transform: translateX(0);
   }
   .sidebar-scrim {
@@ -2759,3 +2764,16 @@ td .button-row {
     animation-iteration-count: 1 !important;
   }
 }
+/* Chain transaction feedback and evidence are visible in both private and public views. */
+.chain-notice { position: relative; z-index: 80; padding: 14px 24px; background: #102c32; border-bottom: 1px solid #32665e; }
+.chain-notice > div:first-child { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.chain-notice p { margin: 9px 0; overflow-wrap: anywhere; }
+.chain-notice .button-row { flex-wrap: wrap; margin-top: 9px; }
+.chain-notice a,.chain-proof a { color: var(--accent); text-decoration: underline; }
+.chain-proof { margin-top: 20px; min-width: 0; overflow-wrap: anywhere; }
+.chain-proof ol { padding-left: 18px; }
+.chain-proof li { margin: 12px 0; }
+.chain-proof li > * { display: block; }
+.transaction-page { max-width: 1000px; margin: 40px auto; padding: 0 24px; }
+.transaction-page h1,.transaction-page h2 { margin-bottom: 22px; }
+.transaction-page h2 { margin-top: 24px; }

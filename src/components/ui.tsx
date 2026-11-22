@@ -287,7 +287,12 @@ export function WarrantyPanel({
       </div>
       <div
         className="progress-track"
-        aria-label={`${remaining} of ${product.max_claims} service claims remaining`}
+        role="meter"
+        aria-label="Service claims remaining"
+        aria-valuemin={0}
+        aria-valuemax={product.max_claims}
+        aria-valuenow={remaining}
+        aria-valuetext={`${remaining} of ${product.max_claims} service claims remaining`}
       >
         <span
           style={{

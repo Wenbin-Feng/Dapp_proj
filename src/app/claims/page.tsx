@@ -21,11 +21,10 @@ import {
   StatusBadge,
   SuccessNotice,
 } from "@/components/ui";
-import { useProductGateway } from "@/components/product-gateway";
+import { productGateway } from "@/lib/api-client";
 import { formatDate, shortWallet } from "@/lib/format";
 import type { Claim } from "@/lib/types";
 export default function Claims() {
-  const productGateway = useProductGateway();
   const { profile } = useWallet();
   const { data, loading, error, reload } = useDashboard();
   const [filter, setFilter] = useState("open");

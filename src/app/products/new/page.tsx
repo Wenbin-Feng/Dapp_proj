@@ -6,9 +6,8 @@ import { ArrowLeft, ArrowRight, Fingerprint, LoaderCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useWallet } from "@/components/wallet-provider";
 import { EmptyState, ErrorNotice, PageTitle } from "@/components/ui";
-import { useProductGateway } from "@/components/product-gateway";
+import { productGateway } from "@/lib/api-client";
 export default function NewProduct() {
-  const productGateway = useProductGateway();
   const { profile } = useWallet();
   const router = useRouter();
   const [model, setModel] = useState("");
@@ -95,7 +94,7 @@ export default function NewProduct() {
                   placeholder="Enter the product's unique serial"
                 />
                 <span className="field-hint">
-                  Must be unique across all registered products.
+                  Must be unique. On-chain serials use ASCII letters, digits or punctuation without spaces.
                 </span>
               </div>
               <div className="field">

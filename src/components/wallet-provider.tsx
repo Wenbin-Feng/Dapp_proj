@@ -1,5 +1,4 @@
 "use client";
-
 import {
   createContext,
   useCallback,
@@ -9,40 +8,36 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { EthereumWallet, SupabaseClient } from "@supabase/supabase-js";
-import { createBrowserSupabase } from "@/lib/supabase/client";
-import type { Profile } from "@/lib/types";
-import { BRAND } from "@/lib/brand";
+import { api } from "@/lib/api-client";
 import { fetchMe } from "@/lib/wallet-session";
+import type { Profile, MeData } from "@/lib/types";
+import {
+  selectWalletTransport,
+  type WalletTransport,
+} from "@/lib/wallet-transport";
 
-type EthereumProvider = EthereumWallet & {
-  isMetaMask?: boolean;
-  providers?: EthereumProvider[];
-};
+type AccountListener = (accounts: string[]) => void;
+type EthereumProvider = WalletTransport;
 interface WalletContextValue {
-  provider: EthereumProvider | null;
   profile: Profile | null;
+  address: string | null;
   loading: boolean;
   connecting: boolean;
   error: string | null;
-  address: string | null;
   connect: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
-
 const WalletContext = createContext<WalletContextValue | null>(null);
-
-function injectedMetaMask(): EthereumProvider | null {
+function injectedMetaMask() {
   const ethereum = (window as Window & { ethereum?: EthereumProvider })
     .ethereum;
   return (
-    ethereum?.providers?.find((provider) => provider.isMetaMask) ||
+    ethereum?.providers?.find((p) => p.isMetaMask) ||
     (ethereum?.isMetaMask ? ethereum : null)
   );
 }
-
-function messageFor(error: unknown): string {
+function messageFor(error: unknown) {
   const code =
     error && typeof error === "object" && "code" in error
       ? error.code
@@ -55,88 +50,73 @@ function messageFor(error: unknown): string {
     ? error.message
     : "Wallet sign-in failed. Please try again.";
 }
-
+function notifySessionChange() {
+  try {
+    localStorage.setItem("dapp-session-change", crypto.randomUUID());
+  } catch {
+    /* Storage may be disabled. */
+  }
+}
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [discovering, setDiscovering] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null),
+    [address, setAddress] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true),
+    [connecting, setConnecting] = useState(false),
+    [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<EthereumProvider | null>(null);
-  const clientRef = useRef<SupabaseClient | null>(null);
-  const providerRef = useRef<EthereumProvider | null>(null);
-  const addressRef = useRef<string | null>(null);
-  const alive = useRef(true);
-  const epoch = useRef(0);
-  const requestNumber = useRef(0);
-  const connectingRef = useRef(false);
-  const logoutRef = useRef<Promise<void> | null>(null);
-
-  const getClient = useCallback(() => {
-    if (!clientRef.current) clientRef.current = createBrowserSupabase();
-    return clientRef.current;
-  }, []);
-
+  const providerRef = useRef<EthereumProvider | null>(null),
+    addressRef = useRef<string | null>(null);
+  const alive = useRef(true),
+    epoch = useRef(0),
+    requestNumber = useRef(0),
+    connectingRef = useRef(false),
+    logoutRef = useRef<Promise<void> | null>(null);
   const clearIdentity = useCallback(() => {
-    epoch.current += 1;
-    requestNumber.current += 1;
+    epoch.current++;
+    requestNumber.current++;
     addressRef.current = null;
     if (alive.current) {
       setAddress(null);
       setProfile(null);
     }
   }, []);
-
   const signOut = useCallback(async () => {
     if (logoutRef.current) return logoutRef.current;
     clearIdentity();
     if (alive.current) {
       setError(null);
-      // Sign-out is terminal even when it invalidates an initial restoration.
       setLoading(false);
     }
-    const logout = (async () => {
+    const pending = (async () => {
       try {
-        const { error: logoutError } = await getClient().auth.signOut({
-          scope: "local",
-        });
-        if (logoutError) throw logoutError;
-      } catch (logoutError) {
-        if (alive.current) setError(messageFor(logoutError));
+        await api("/api/auth/logout", { method: "POST" });
+        notifySessionChange();
+      } catch (e) {
+        if (alive.current) setError(messageFor(e));
       }
     })();
-    logoutRef.current = logout;
+    logoutRef.current = pending;
     try {
-      await logout;
+      await pending;
     } finally {
       logoutRef.current = null;
     }
-  }, [clearIdentity, getClient]);
-
+  }, [clearIdentity]);
   const refreshProfile = useCallback(async () => {
-    const currentEpoch = epoch.current;
-    const number = ++requestNumber.current;
+    const currentEpoch = epoch.current,
+      number = ++requestNumber.current;
+    const current = () =>
+      alive.current &&
+      epoch.current === currentEpoch &&
+      requestNumber.current === number;
     try {
       const me = await fetchMe();
-      if (
-        !alive.current ||
-        epoch.current !== currentEpoch ||
-        requestNumber.current !== number
-      )
-        return;
-      const activeProvider = providerRef.current;
-      if (me && activeProvider && !connectingRef.current) {
-        // eth_accounts is silent; it never opens a connection or signing prompt.
-        const accounts = await activeProvider
+      if (!current()) return;
+      if (me && providerRef.current && !connectingRef.current) {
+        const accounts = await providerRef.current
           .request({ method: "eth_accounts" })
           .catch(() => null);
-        if (
-          !alive.current ||
-          epoch.current !== currentEpoch ||
-          requestNumber.current !== number
-        )
-          return;
+        if (!current()) return;
         if (
           Array.isArray(accounts) &&
           (typeof accounts[0] !== "string" ||
@@ -154,28 +134,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAddress(me?.wallet_address || null);
       setProfile(me?.profile || null);
       setError(null);
-    } catch (loadError) {
-      if (
-        alive.current &&
-        epoch.current === currentEpoch &&
-        requestNumber.current === number
-      ) {
-        setError(messageFor(loadError));
-      }
-      throw loadError;
+    } catch (e) {
+      if (current()) setError(messageFor(e));
+      throw e;
     } finally {
-      // An earlier Strict Mode setup may finish after the next setup starts.
-      // Only the current restoration request can release the initial loader.
-      if (
-        alive.current &&
-        epoch.current === currentEpoch &&
-        requestNumber.current === number
-      ) {
-        setLoading(false);
-      }
+      if (current()) setLoading(false);
     }
   }, [signOut]);
-
   const connect = useCallback(async () => {
     if (connectingRef.current) return;
     connectingRef.current = true;
@@ -192,50 +157,68 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         );
       if (!providerRef.current) {
         providerRef.current = wallet;
+        selectWalletTransport(wallet);
         setProvider(wallet);
       }
-      const client = getClient();
-      const { error: loginError } = await client.auth.signInWithWeb3({
-        chain: "ethereum",
-        wallet,
-        statement:
-          `Sign in to ${BRAND.name} to manage your product passports. This request does not send a transaction.`,
-      });
-      if (loginError) throw loginError;
-      if (!alive.current || currentEpoch !== epoch.current) {
-        await client.auth.signOut({ scope: "local" });
-        return;
-      }
-      const me = await fetchMe();
-      if (!me)
-        throw new Error(
-          "Your wallet session could not be verified. Please connect again.",
-        );
-      const accounts = await wallet.request({ method: "eth_accounts" });
+      const accounts = await wallet.request({ method: "eth_requestAccounts" });
       if (
         !Array.isArray(accounts) ||
         typeof accounts[0] !== "string" ||
-        accounts[0].toLowerCase() !== me.wallet_address.toLowerCase()
-      ) {
+        !/^0x[0-9a-fA-F]{40}$/.test(accounts[0])
+      )
+        throw new Error("Select an Ethereum wallet account to continue.");
+      const chain = await wallet.request({ method: "eth_chainId" });
+      const chainId =
+        typeof chain === "string" ? Number.parseInt(chain, 16) : NaN;
+      if (!Number.isSafeInteger(chainId) || chainId <= 0)
+        throw new Error("Your wallet returned an invalid network ID.");
+      const challenge = await api<{ id: string; message: string }>(
+        "/api/auth/challenge",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            wallet_address: accounts[0],
+            chain_id: chainId,
+          }),
+        },
+      );
+      const encoded =
+        "0x" +
+        Array.from(new TextEncoder().encode(challenge.message), (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join("");
+      const signature = await wallet.request({
+        method: "personal_sign",
+        params: [encoded, accounts[0]],
+      });
+      if (typeof signature !== "string")
+        throw new Error("Your wallet did not return a signature.");
+      const me = await api<MeData>("/api/auth/verify", {
+        method: "POST",
+        body: JSON.stringify({ id: challenge.id, signature }),
+      });
+      const active = await wallet.request({ method: "eth_accounts" });
+      if (
+        !Array.isArray(active) ||
+        typeof active[0] !== "string" ||
+        active[0].toLowerCase() !== me.wallet_address.toLowerCase()
+      )
         throw new Error(
           "Your wallet account changed while signing in. Please connect again.",
         );
-      }
-      if (!alive.current || currentEpoch !== epoch.current) {
-        await client.auth.signOut({ scope: "local" });
+      if (!alive.current || epoch.current !== currentEpoch) {
+        await api("/api/auth/logout", { method: "POST" });
         return;
       }
-      requestNumber.current += 1;
+      requestNumber.current++;
       addressRef.current = me.wallet_address.toLowerCase();
       setAddress(me.wallet_address);
       setProfile(me.profile);
-    } catch (connectError) {
-      // Do not leave a newly issued session behind when post-login verification fails.
-      await clientRef.current?.auth
-        .signOut({ scope: "local" })
-        .catch(() => undefined);
+      notifySessionChange();
+    } catch (e) {
+      await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
       clearIdentity();
-      if (alive.current) setError(messageFor(connectError));
+      if (alive.current) setError(messageFor(e));
     } finally {
       connectingRef.current = false;
       if (alive.current) {
@@ -243,48 +226,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     }
-  }, [clearIdentity, getClient]);
-
+  }, [clearIdentity]);
   useEffect(() => {
     alive.current = true;
-    let unsubscribe: (() => void) | undefined;
-    try {
-      const client = getClient();
-      const {
-        data: { subscription },
-      } = client.auth.onAuthStateChange((event) => {
-        if (!alive.current) return;
-        if (event === "SIGNED_OUT") clearIdentity();
-        if (
-          ["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event) &&
-          !connectingRef.current
-        ) {
-          queueMicrotask(() => {
-            if (alive.current) void refreshProfile().catch(() => undefined);
-          });
-        }
-      });
-      unsubscribe = () => subscription.unsubscribe();
-      void refreshProfile().catch(() => undefined);
-    } catch (setupError) {
-      setError(messageFor(setupError));
-      setLoading(false);
-    }
+    void refreshProfile().catch(() => undefined);
+    const restore = () => {
+      if (alive.current && !connectingRef.current)
+        void refreshProfile().catch(() => undefined);
+    };
+    const storage = (e: StorageEvent) => {
+      if (e.key === "dapp-session-change") restore();
+    };
+    window.addEventListener("focus", restore);
+    window.addEventListener("storage", storage);
     return () => {
       alive.current = false;
-      epoch.current += 1;
-      unsubscribe?.();
+      epoch.current++;
+      window.removeEventListener("focus", restore);
+      window.removeEventListener("storage", storage);
     };
-  }, [clearIdentity, getClient, refreshProfile]);
-
+  }, [refreshProfile]);
   useEffect(() => {
     const select = (wallet: EthereumProvider) => {
       if (providerRef.current || typeof wallet.request !== "function") return;
       providerRef.current = wallet;
+      selectWalletTransport(wallet);
       setProvider(wallet);
-      setDiscovering(false);
     };
-    const onAnnounce = (event: Event) => {
+    const announce = (event: Event) => {
       const detail = (
         event as CustomEvent<{
           info?: { rdns?: string };
@@ -294,48 +263,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (detail?.info?.rdns === "io.metamask" && detail.provider?.isMetaMask)
         select(detail.provider);
     };
-    window.addEventListener("eip6963:announceProvider", onAnnounce);
+    window.addEventListener("eip6963:announceProvider", announce);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     const fallback = window.setTimeout(() => {
       const wallet = injectedMetaMask();
       if (wallet) select(wallet);
-      setDiscovering(false);
     }, 200);
     return () => {
-      window.removeEventListener("eip6963:announceProvider", onAnnounce);
+      window.removeEventListener("eip6963:announceProvider", announce);
       window.clearTimeout(fallback);
     };
   }, []);
-
   useEffect(() => {
     if (!provider) return;
-    const onAccountsChanged = (accounts: `0x${string}`[]) => {
+    const changed: AccountListener = (accounts) => {
       const next =
         typeof accounts[0] === "string" ? accounts[0].toLowerCase() : null;
-      if (addressRef.current && next !== addressRef.current) {
+      if (addressRef.current && next !== addressRef.current)
         void signOut().then(() => {
           if (alive.current)
             setError(
               "Your wallet account changed. Connect it again to continue.",
             );
         });
-      }
     };
-    provider.on?.("accountsChanged", onAccountsChanged);
+    provider.on?.("accountsChanged", changed);
     if (!connectingRef.current) void refreshProfile().catch(() => undefined);
-    return () =>
-      provider.removeListener?.("accountsChanged", onAccountsChanged);
+    return () => provider.removeListener?.("accountsChanged", changed);
   }, [provider, refreshProfile, signOut]);
-
   return (
     <WalletContext.Provider
       value={{
-        provider,
         profile,
-        loading: loading || discovering,
+        address,
+        loading,
         connecting,
         error,
-        address,
         connect,
         signOut,
         refreshProfile,
@@ -345,8 +308,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     </WalletContext.Provider>
   );
 }
-
-export function useWallet(): WalletContextValue {
+export function useWallet() {
   const context = useContext(WalletContext);
   if (!context)
     throw new Error("useWallet must be used inside WalletProvider.");

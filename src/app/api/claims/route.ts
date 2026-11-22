@@ -1,18 +1,13 @@
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { readJson, route } from "@/lib/http";
-import { businessRpc, relatedClaims } from "@/lib/products-server";
-import type { Claim } from "@/lib/types";
-import { requireDatabaseProducts } from "@/lib/chain/products-server";
 
-export const GET = route(async () => {
-  const { db, userId } = await requireAuth();
-  return Response.json({ data: await relatedClaims(db, userId) });
+export const GET = route(async (request) => {
+  const { db, userId } = await requireAuth(request);
+  return Response.json({ data: db.claims(userId) });
 });
-
 export const POST = route(async (request) => {
-  const { db, userId } = await requireAuth({ roles: ["customer"] });
-  requireDatabaseProducts();
+  const { db, userId } = await requireAuth(request, { roles: ["customer"] });
   const input = await readJson(
     request,
     z
@@ -25,12 +20,12 @@ export const POST = route(async (request) => {
   );
   return Response.json(
     {
-      data: await businessRpc<Claim>(db, "dapp_submit_claim", {
-        p_actor_id: userId,
-        p_product_id: input.product_id,
-        p_service_center_id: input.service_center_id,
-        p_description: input.description,
-      }),
+      data: db.submitClaim(
+        userId,
+        input.product_id,
+        input.service_center_id,
+        input.description,
+      ),
     },
     { status: 201 },
   );

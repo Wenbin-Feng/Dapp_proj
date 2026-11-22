@@ -1,15 +1,11 @@
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { readJson, route } from "@/lib/http";
-import { businessRpc, pathId } from "@/lib/products-server";
-import type { Transfer } from "@/lib/types";
-import { requireDatabaseProducts } from "@/lib/chain/products-server";
-
+import { pathId } from "@/lib/products-server";
 export const POST = route(async (request) => {
-  const { db, userId } = await requireAuth({
+  const { db, userId } = await requireAuth(request, {
     roles: ["manufacturer", "retailer", "customer"],
   });
-  requireDatabaseProducts();
   const input = await readJson(
     request,
     z
@@ -18,15 +14,15 @@ export const POST = route(async (request) => {
           .string()
           .trim()
           .regex(/^0x[0-9a-fA-F]{40}$/)
-          .transform((value) => value.toLowerCase()),
+          .transform((v) => v.toLowerCase()),
       })
       .strict(),
   );
   return Response.json({
-    data: await businessRpc<Transfer>(db, "dapp_request_transfer", {
-      p_actor_id: userId,
-      p_product_id: pathId(request, "products"),
-      p_to_wallet: input.to_wallet,
-    }),
+    data: db.requestTransfer(
+      userId,
+      pathId(request, "products"),
+      input.to_wallet,
+    ),
   });
 });
