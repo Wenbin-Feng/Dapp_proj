@@ -13,6 +13,7 @@ interface Pending {
 }
 const key = "dapp.pending-chain-operation";
 let active = false;
+let permissionReview: { wallet: string; chainId: number } | null = null;
 let lastProgress: ChainProgress | null = null;
 export const currentChainProgress = () => lastProgress;
 export function pendingChainTransaction(): Pending | null {
@@ -97,7 +98,7 @@ function errorMessage(error: unknown) {
     ? "The wallet transaction was cancelled. No new transaction was submitted."
     : e.code === "INSUFFICIENT_FUNDS"
       ? "This wallet needs local test ETH to pay transaction gas. Use a funded Hardhat test wallet."
-      : e.shortMessage ||
+      : (error as { error?: { message?: string } })?.error?.message || e.shortMessage ||
         e.message ||
         "Transaction failed. Check the wallet and local chain.";
 }
@@ -155,6 +156,10 @@ export async function performMutation<T>(
       body: JSON.stringify(command),
     });
     const wallet = await connectLocalChain(prepared);
+    if (permissionReview?.wallet === prepared.wallet && permissionReview.chainId === prepared.chainId) {
+      await wallet.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+      permissionReview = null;
+    }
     provider = new BrowserProvider(wallet, "any");
     const signer = await provider.getSigner();
     if ((await signer.getAddress()).toLowerCase() !== prepared.wallet)
@@ -172,6 +177,17 @@ export async function performMutation<T>(
       to: prepared.to,
       data: prepared.data,
       value: 0,
+    }).catch((error: unknown) => {
+      // ethers wraps MetaMask's 4100 as UNKNOWN_ERROR. Only discard an
+      // intent when the wallet denied a method before returning a transaction.
+      const rpc = error as { error?: { code?: number }; payload?: { method?: string } };
+      if (rpc?.error?.code === 4100 &&
+          ["eth_sendTransaction", "eth_estimateGas", "eth_accounts", "eth_blockNumber"].includes(rpc.payload?.method ?? "")) {
+        sessionStorage.removeItem(key);
+        permissionReview = { wallet: prepared.wallet, chainId: prepared.chainId };
+        throw Error("MetaMask needs account access on this network. Submit again to review the connection, then confirm the transaction.");
+      }
+      throw error;
     });
     save({ prepared, hash: tx.hash });
     progress({

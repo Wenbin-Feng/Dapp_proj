@@ -235,6 +235,7 @@ export class LocalDatabase {
     actor: string,
     input: {
       serial_number: string;
+      manufacturer_name?: string;
       model: string;
       warranty_duration_days: number;
       max_claims: number;
@@ -272,7 +273,7 @@ export class LocalDatabase {
         serial.toLowerCase(),
         model,
         actor,
-        maker.organization_name || maker.display_name,
+        text(input.manufacturer_name ?? (maker.organization_name || maker.display_name), 120, "Manufacturer name"),
         maker.wallet_address,
         actor,
         maker.wallet_address,

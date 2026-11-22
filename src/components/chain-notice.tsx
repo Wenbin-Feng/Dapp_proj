@@ -57,7 +57,7 @@ export function ChainNotice() {
     }
   };
   return (
-    <aside className="chain-notice" aria-label="Blockchain connection">
+    <aside id="blockchain-connection" className="chain-notice" aria-label="Blockchain connection">
       <div>
         <strong>
           {status.ready

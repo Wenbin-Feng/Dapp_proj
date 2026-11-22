@@ -284,6 +284,7 @@ export const chainCommandSchema = z.discriminatedUnion("kind", [
           "Use ASCII letters, digits or punctuation without spaces.",
         ),
       model: z.string().trim().min(1).max(120),
+      manufacturer_name: z.string().trim().min(1).max(120).optional(),
       warranty_duration_days: z.number().int().min(1).max(36500),
       max_claims: z.number().int().min(1).max(1000),
     })
@@ -375,7 +376,7 @@ export async function prepareTransaction(
       toChainId(entityId),
       input.serial_number,
       input.model,
-      profile.organization_name || profile.display_name,
+      input.manufacturer_name ?? (profile.organization_name || profile.display_name),
       input.warranty_duration_days,
       input.max_claims,
     ];

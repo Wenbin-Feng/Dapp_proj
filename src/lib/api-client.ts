@@ -15,6 +15,7 @@ export const productGateway = {
   detail: (id: string) => api<ProductDetail>(`/api/products/${id}`),
   register: (input: {
     serial_number: string;
+    manufacturer_name?: string;
     model: string;
     warranty_duration_days: number;
     max_claims: number;

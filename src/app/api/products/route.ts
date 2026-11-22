@@ -16,6 +16,7 @@ export const POST = route(async (request) => {
       .object({
         serial_number: z.string().trim().min(1).max(120),
         model: z.string().trim().min(1).max(120),
+        manufacturer_name: z.string().trim().min(1).max(120).optional(),
         warranty_duration_days: z.number().int().min(1).max(36500),
         max_claims: z.number().int().min(1).max(1000),
       })
