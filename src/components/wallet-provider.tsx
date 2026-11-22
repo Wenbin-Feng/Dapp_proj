@@ -23,6 +23,7 @@ interface WalletContextValue {
   address: string | null;
   loading: boolean;
   connecting: boolean;
+  needsAccountPermission: boolean;
   error: string | null;
   connect: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -63,6 +64,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true),
     [connecting, setConnecting] = useState(false),
     [error, setError] = useState<string | null>(null);
+  const [needsAccountPermission, setNeedsAccountPermission] = useState(false);
   const [provider, setProvider] = useState<EthereumProvider | null>(null);
   const providerRef = useRef<EthereumProvider | null>(null),
     addressRef = useRef<string | null>(null);
@@ -85,6 +87,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     clearIdentity();
     if (alive.current) {
       setError(null);
+      setNeedsAccountPermission(false);
       setLoading(false);
     }
     const pending = (async () => {
@@ -163,6 +166,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         selectWalletTransport(wallet);
         setProvider(wallet);
       }
+      if (needsAccountPermission) {
+        await wallet.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+      }
       const accounts = await wallet.request({ method: "eth_requestAccounts" });
       if (
         !Array.isArray(accounts) ||
@@ -194,6 +203,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const signature = await wallet.request({
         method: "personal_sign",
         params: [encoded, accounts[0]],
+      }).catch((error: unknown) => {
+        if (error && typeof error === "object" && "code" in error && Number(error.code) === 4100) {
+          setNeedsAccountPermission(true);
+          throw new Error("MetaMask did not authorize this account to sign on the selected network. Review the account connection in MetaMask to sign in.");
+        }
+        throw error;
       });
       if (typeof signature !== "string")
         throw new Error("Your wallet did not return a signature.");
@@ -218,6 +233,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       requestNumber.current++;
       addressRef.current = me.wallet_address.toLowerCase();
+      setNeedsAccountPermission(false);
       setAddress(me.wallet_address);
       setProfile(me.profile);
       notifySessionChange();
@@ -233,7 +249,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     }
-  }, [clearIdentity]);
+  }, [clearIdentity, needsAccountPermission]);
   useEffect(() => {
     alive.current = true;
     void refreshProfile().catch(() => undefined);
@@ -305,6 +321,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         address,
         loading,
         connecting,
+        needsAccountPermission,
         error,
         connect,
         signOut,

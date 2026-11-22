@@ -94,7 +94,7 @@ export default function Login() {
               ) : (
                 <>
                   <Wallet size={18} aria-hidden="true" />
-                  Continue with MetaMask
+                  {wallet.needsAccountPermission ? "Review MetaMask connection" : "Continue with MetaMask"}
                   <ArrowUpRight size={17} aria-hidden="true" />
                 </>
               )}
