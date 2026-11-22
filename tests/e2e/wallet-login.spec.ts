@@ -83,7 +83,9 @@ async function walletBrowser(browser: Browser, failure?: number) {
           method: string;
           params?: string[];
         }) {
-          if (method === "eth_requestAccounts" && code)
+          if (method === "personal_sign" && code === -32603)
+            throw { code, message: "MetaMask could not process the signing request." };
+          if (method === "eth_requestAccounts" && code && code !== -32603)
             throw Object.assign(new Error("Test wallet request rejected"), {
               code,
             });
@@ -191,7 +193,8 @@ test("real local signature login persists an HttpOnly session and opens onboardi
   }
 });
 for (const [code, message] of [
-  [4001, "The wallet request was cancelled. You can try again."],
+  [4001, "The wallet request was cancelled."],
+  [-32603, "MetaMask could not process the signing request."],
   [-32002, "A request is already open in MetaMask. Please finish it there."],
 ] as const)
   test(`wallet ${code} error remains actionable without Supabase`, async ({
@@ -215,6 +218,33 @@ for (const [code, message] of [
       await s.context.close();
     }
   });
+test("the same wallet signs in again with its saved role after logout", async ({ browser }) => {
+  const s = await walletBrowser(browser);
+  try {
+    await registerRole(s.page, "Customer", "Returning customer");
+    await s.page.getByRole("link", { name: "My profile", exact: true }).click();
+    await s.page.getByLabel("Account role").selectOption("manufacturer");
+    await s.page.getByLabel("Organization name", { exact: false }).fill("Demo workshop");
+    await s.page.getByRole("button", { name: "Save changes" }).click();
+    await expect(s.page.getByText("Your profile has been updated.")).toBeVisible();
+
+    await Promise.all([
+      s.page.waitForResponse(r => r.url().endsWith("/api/auth/logout") && r.ok()),
+      s.page.getByRole("button", { name: "Sign out" }).click(),
+    ]);
+    await expect(s.page).toHaveURL(/\/login$/);
+    expect((await s.context.request.get(ORIGIN + "/api/me")).status()).toBe(401);
+    await s.page.getByRole("button", { name: "Continue with MetaMask" }).click();
+    await expect(s.page).toHaveURL(/\/dashboard$/);
+    await s.page.reload();
+    await expect(s.page.getByText("Manufacturer workspace", { exact: true })).toBeVisible();
+    const me = (await (await s.context.request.get(ORIGIN + "/api/me")).json()).data;
+    expect(me.wallet_address).toBe(s.wallet.address.toLowerCase());
+    expect(me.profile.role).toBe("manufacturer");
+  } finally {
+    await s.context.close();
+  }
+});
 test("changing accounts revokes the actual server session", async ({
   browser,
 }) => {

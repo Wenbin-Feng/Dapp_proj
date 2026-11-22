@@ -37,18 +37,18 @@ function injectedMetaMask() {
     (ethereum?.isMetaMask ? ethereum : null)
   );
 }
-function messageFor(error: unknown) {
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? error.code
-      : undefined;
-  if (code === 4001)
-    return "The wallet request was cancelled. You can try again.";
-  if (code === -32002)
+function messageFor(error: unknown, fallback = "The wallet request failed.") {
+  const detail = error && typeof error === "object" ? error : null;
+  const code = detail && "code" in detail ? String(detail.code) : "";
+  if (code === "4001")
+    return "The wallet request was cancelled.";
+  if (code === "-32002")
     return "A request is already open in MetaMask. Please finish it there.";
-  return error instanceof Error
-    ? error.message
-    : "Wallet sign-in failed. Please try again.";
+  const message = detail && "message" in detail ? detail.message : error;
+  if (typeof message === "string" && message.trim()) {
+    return message.trim().slice(0, 400);
+  }
+  return code ? `${fallback} (wallet error ${code})` : fallback;
 }
 function notifySessionChange() {
   try {
@@ -103,6 +103,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [clearIdentity]);
   const refreshProfile = useCallback(async () => {
+    if (logoutRef.current) return;
     const currentEpoch = epoch.current,
       number = ++requestNumber.current;
     const current = () =>
@@ -133,7 +134,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       addressRef.current = me?.wallet_address.toLowerCase() || null;
       setAddress(me?.wallet_address || null);
       setProfile(me?.profile || null);
-      setError(null);
+      if (me) setError(null);
     } catch (e) {
       if (current()) setError(messageFor(e));
       throw e;
@@ -149,6 +150,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await logoutRef.current;
     clearIdentity();
     const currentEpoch = epoch.current;
+    let verifyStarted = false;
+    let failureContext = "MetaMask could not connect the selected account.";
     try {
       const wallet = providerRef.current || injectedMetaMask();
       if (!wallet)
@@ -187,12 +190,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         Array.from(new TextEncoder().encode(challenge.message), (byte) =>
           byte.toString(16).padStart(2, "0"),
         ).join("");
+      failureContext = "MetaMask did not return a login signature.";
       const signature = await wallet.request({
         method: "personal_sign",
         params: [encoded, accounts[0]],
       });
       if (typeof signature !== "string")
         throw new Error("Your wallet did not return a signature.");
+      verifyStarted = true;
+      failureContext = "The signed login could not be verified.";
       const me = await api<MeData>("/api/auth/verify", {
         method: "POST",
         body: JSON.stringify({ id: challenge.id, signature }),
@@ -216,9 +222,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setProfile(me.profile);
       notifySessionChange();
     } catch (e) {
-      await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+      if (verifyStarted)
+        await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
       clearIdentity();
-      if (alive.current) setError(messageFor(e));
+      if (alive.current) setError(messageFor(e, failureContext));
     } finally {
       connectingRef.current = false;
       if (alive.current) {
