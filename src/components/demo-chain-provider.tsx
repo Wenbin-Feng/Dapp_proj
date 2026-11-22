@@ -48,7 +48,7 @@ type Context = {
   message: string | null;
   entries: TransactionEntry[];
   invoke: (call: ContractCall, label: string) => Promise<Hash>;
-  resume: (entry: TransactionEntry) => Promise<void>;
+  resume: (entry: TransactionEntry) => Promise<boolean>;
 };
 const DemoContext = createContext<Context | null>(null);
 const storageKey = "dapp-demo-transactions-v1";
@@ -230,7 +230,7 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
   const resume = useCallback(
     async (entry: TransactionEntry) => {
       if (locked.current || !client || entry.chainId !== config?.chainId)
-        return;
+        return false;
       locked.current = true;
       setBusy(true);
       setError(null);
@@ -238,9 +238,11 @@ export function DemoChainProvider({ children }: { children: ReactNode }) {
       try {
         await confirm(entry, client);
         setMessage(`${entry.label} confirmed on chain.`);
+        return true;
       } catch (reason) {
         setError(transactionError(reason));
         setMessage(null);
+        return false;
       } finally {
         locked.current = false;
         setBusy(false);

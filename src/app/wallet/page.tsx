@@ -98,7 +98,7 @@ function WalletContents() {
   const history = useCallback(
     async (before?: bigint) => {
       if (!config || !client || !address) return;
-      const end = before ?? (await client.getBlockNumber());
+      const end = before ?? (await client.getBlockNumber({ cacheTime: 0 }));
       const floor = BigInt(config.fromBlock);
       if (end < floor) return;
       const start = end - floor > 1999n ? end - 1999n : floor;
@@ -328,7 +328,14 @@ function WalletContents() {
                   <button
                     className="button button-secondary button-small"
                     disabled={busy}
-                    onClick={() => void resume(entry)}
+                    onClick={() =>
+                      void resume(entry)
+                        .then(async (confirmed) => {
+                          if (confirmed)
+                            await Promise.all([refresh(), history()]);
+                        })
+                        .catch((reason) => setError(transactionError(reason)))
+                    }
                   >
                     Check receipt
                   </button>

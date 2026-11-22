@@ -2,6 +2,7 @@
 // configuration are intercepted. No application authentication bypass is added.
 import { test, expect } from "@playwright/test";
 import { network } from "hardhat";
+import { displayAmount } from "../../src/lib/chain/amounts";
 import { readFile } from "node:fs/promises";
 import {
   createPublicClient,
@@ -404,6 +405,21 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
     await expect(
       page.getByText("Transfer PDC · pending", { exact: true }),
     ).toBeVisible();
+    const pdcBalance = page.locator(".facts-grid > div")
+      .filter({ has: page.getByText("PDC", { exact: true }) })
+      .locator("dd");
+    await expect(pdcBalance).not.toHaveText("Loading…");
+    const beforeConfirmation = await pdcBalance.textContent();
+    // An allowance change in the same mined batch must also appear on refresh.
+    await signer.writeContract({
+      address: tokens[0],
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [amm.router, parseEther("7")],
+      nonce: await client.getTransactionCount({
+        address: accounts[0], blockTag: "pending",
+      }),
+    });
     await client.request({ method: "evm_mine" } as never);
     await client.request({
       method: "evm_setAutomine",
@@ -425,6 +441,18 @@ test("demo wallet and AMM execute real transfers, swaps and LP transactions", as
         ),
       )
       .toBe("confirmed");
+    const confirmedBalance = await client.readContract({
+      address: tokens[0],
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [accounts[0]],
+    });
+    expect(displayAmount(confirmedBalance)).not.toBe(beforeConfirmation);
+    await expect(pdcBalance).toHaveText(displayAmount(confirmedBalance));
+    await expect(page.getByText("AMM router · 7 PDC", { exact: true })).toBeVisible();
+    await expect(page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Token transfers on chain" }),
+    }).locator(`[title="${pending}"]`)).toBeVisible();
     // A pending transaction may confirm after the account has changed, but the
     // previous wallet's balances or business success must not become the new session's state.
     await client.request({
