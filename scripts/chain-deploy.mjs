@@ -8,6 +8,8 @@ import {
 } from "ethers";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
+const chainId = Number(process.env.DAPP_CHAIN_ID || 31337);
+if (![31337, 31338].includes(chainId)) throw Error("Expected a DApp demo chain ID.");
 const rpcUrl = process.env.CHAIN_RPC_URL || "http://127.0.0.1:8545";
 if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(rpcUrl).hostname))
   throw Error("This deployment script only supports a local development node.");
@@ -16,7 +18,7 @@ const file = resolve(
 );
 const provider = new JsonRpcProvider(rpcUrl, undefined, { cacheTimeout: -1 });
 try {
-  if ((await provider.getNetwork()).chainId !== 31337n)
+  if ((await provider.getNetwork()).chainId !== BigInt(chainId))
     throw Error("Expected local chain ID 31337.");
   const previous = await readFile(file, "utf8")
     .then(JSON.parse)
@@ -79,7 +81,7 @@ try {
     }
     const data = {
       version: 1,
-      chainId: 31337,
+      chainId,
       rpcUrl,
       address,
       deploymentId,
@@ -102,7 +104,7 @@ try {
       JSON.stringify(
         {
           address,
-          chainId: 31337,
+          chainId,
           manifest: file,
           sqlite: data.databasePath,
           accounts,

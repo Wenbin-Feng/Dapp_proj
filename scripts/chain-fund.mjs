@@ -20,8 +20,8 @@ const provider = new JsonRpcProvider(endpoint.href, undefined, {
   cacheTimeout: -1,
 });
 try {
-  if ((await provider.getNetwork()).chainId !== 31337n)
-    throw Error("Expected local chain 31337.");
+  if ((await provider.getNetwork()).chainId !== BigInt(d.chainId))
+    throw Error("Wrong demo network.");
   const contract = new Contract(
     d.address,
     ["function deploymentId() view returns(bytes32)"],

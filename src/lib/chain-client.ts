@@ -63,7 +63,7 @@ export async function connectLocalChain(
         params: [
           {
             chainId: expected,
-            chainName: "Product Passport - Local Hardhat",
+            chainName: status.chainId === 31338 ? "Product Passport Demo" : "Product Passport - Local Hardhat",
             rpcUrls: [status.rpcUrl],
             nativeCurrency: {
               name: "Local test Ether",
@@ -84,7 +84,7 @@ export async function connectLocalChain(
       BigInt((await wallet.request({ method: "eth_chainId" })) as string),
     ) !== status.chainId
   )
-    throw Error("Switch MetaMask to local chain 31337 before continuing.");
+    throw Error(`Switch MetaMask to chain ${status.chainId} before continuing.`);
   return wallet;
 }
 function errorMessage(error: unknown) {

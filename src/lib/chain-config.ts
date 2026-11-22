@@ -6,7 +6,7 @@ import { ApiError } from "./http";
 export const chainEnabled = () => process.env.CHAIN_ENABLED === "1";
 const manifestSchema = z.object({
   version: z.literal(1),
-  chainId: z.literal(31337),
+  chainId: z.union([z.literal(31337), z.literal(31338)]),
   rpcUrl: z.url(),
   address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   deploymentId: z.string().regex(/^0x[0-9a-fA-F]{64}$/),

@@ -200,7 +200,7 @@ export async function chainStatus(
       ready: true,
       chainId: d.chainId,
       address: d.address,
-      rpcUrl: d.rpcUrl,
+      rpcUrl: process.env.DAPP_WALLET_RPC || d.rpcUrl,
       deploymentId: d.deploymentId,
       administrator: d.administrator,
       latestBlock: await provider.getBlockNumber(),
@@ -217,7 +217,7 @@ export async function chainStatus(
         ? {
             chainId: d.chainId,
             address: d.address,
-            rpcUrl: d.rpcUrl,
+            rpcUrl: process.env.DAPP_WALLET_RPC || d.rpcUrl,
             deploymentId: d.deploymentId,
           }
         : {}),
@@ -450,7 +450,7 @@ export async function prepareTransaction(
     to: d.address,
     data,
     chainId: d.chainId,
-    rpcUrl: d.rpcUrl,
+    rpcUrl: process.env.DAPP_WALLET_RPC || d.rpcUrl,
     deploymentId: d.deploymentId,
   };
 }

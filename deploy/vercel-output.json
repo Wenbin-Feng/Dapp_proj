@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "https://20.164.17.72/dapp-origin/$1",
+      "headers": { "Cache-Control": "private, no-store", "x-vercel-enable-rewrite-caching": "0" }
+    }
+  ]
+}

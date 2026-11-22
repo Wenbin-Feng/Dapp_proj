@@ -1,0 +1,51 @@
+name: Deploy production
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dapp-production
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/release'
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: dapp-linux
+          path: /tmp/dapp-package
+      - name: Install validated service on Azure
+        env:
+          DEPLOY_KEY: ${{ secrets.DAPP_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DAPP_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/dapp
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -i ~/.ssh/dapp dappdeploy@20.164.17.72 < /tmp/dapp-package/dapp-linux.tgz
+      - name: Publish Vercel entry point
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel@64.0.2
+          mkdir -p .vercel/output/static
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          cp deploy/vercel-output.json .vercel/output/config.json
+          url=$(vercel deploy --prebuilt --prod --no-wait --token="$VERCEL_TOKEN" --meta githubCommitSha="$GITHUB_SHA")
+          node scripts/wait-for-vercel.mjs "$url"
+          curl -fsS --retry 4 https://dapp-proj.vercel.app/api/chain/status | jq -e '.data.ready and .data.chainId == 31338'
