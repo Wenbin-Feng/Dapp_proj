@@ -51,7 +51,7 @@ function checkOrigin(request: Request) {
   }
   if (
     !origin ||
-    origin !== expectedOrigin ||
+    origin !== (process.env.DAPP_PUBLIC_ORIGIN || expectedOrigin) ||
     request.headers.get("sec-fetch-site") === "cross-site"
   ) {
     throw new ApiError(

@@ -35,6 +35,9 @@ export const WARRANTY_LABELS = {
 };
 export function productImageUrl(path: string | null) {
   if (!path) return null;
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "dapp";
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent(bucket)}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  return `/api/images/${path
+    .replace(/^products\//, "")
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
 }

@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches-ignore:
-      - release
   pull_request:
     branches:
       - main
@@ -26,10 +24,6 @@ jobs:
     env:
       CI: true
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_fixture_only
-      SUPABASE_STORAGE_BUCKET: dapp
-      NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET: dapp
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -48,17 +42,20 @@ jobs:
       - name: Check TypeScript
         run: npm run typecheck
 
-      - name: Build and test contracts on Hardhat
-        run: npm run contracts:test
-
       - name: Run unit and database tests
         run: npm test
+
+      - name: Test actual contracts and SQLite event projection
+        run: npm run test:chain
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Run browser tests
         run: npm run test:e2e
+
+      - name: Test wallet transactions through browser
+        run: npm run test:chain:e2e
 
       - name: Check production build
         # Direct push/PR events have no inputs; reusable callers may disable it.
@@ -75,3 +72,17 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Package Linux service
+        if: ${{ success() && !contains(toJSON(inputs), '"check-build"') || success() && inputs.check-build }}
+        run: |
+          cp -a .next/static .next/standalone/.next/static
+          cp -a public .next/standalone/public
+          tar czf "$RUNNER_TEMP/dapp-linux.tgz" -C .next/standalone .
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ success() && !contains(toJSON(inputs), '"check-build"') || success() && inputs.check-build }}
+        with:
+          name: dapp-linux
+          path: ${{ runner.temp }}/dapp-linux.tgz
+          retention-days: 3

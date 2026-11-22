@@ -1,10 +1,13 @@
 import { requireAuth } from "@/lib/auth";
 import { route } from "@/lib/http";
-import { pathId, productDetail } from "@/lib/products-server";
-
+import { pathId } from "@/lib/products-server";
+import { productChainProof } from "@/lib/chain-server";
 export const GET = route(async (request) => {
-  const { db, userId } = await requireAuth();
+  const { db, userId } = await requireAuth(request);
   return Response.json({
-    data: await productDetail(db, userId, pathId(request, "products")),
+    data: {
+      ...db.detail(userId, pathId(request, "products")),
+      chain: productChainProof(db, pathId(request, "products")),
+    },
   });
 });

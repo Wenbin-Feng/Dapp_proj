@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,24 +14,18 @@ import {
   ShieldCheck,
   UserRound,
   X,
-  Wallet,
-  Droplets,
-  RefreshCw,
 } from "lucide-react";
 import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
 import { Loading, Logo } from "./ui";
-import { ProductChainStatus } from "./product-chain-status";
+import { ChainNotice } from "./chain-notice";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
-  { href: "/wallet", label: "Demo wallet", icon: Wallet },
-  { href: "/exchange", label: "Exchange", icon: RefreshCw },
-  { href: "/liquidity", label: "Liquidity", icon: Droplets },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
   { href: "/profile", label: "My profile", icon: UserRound },
 ];
@@ -40,6 +34,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const navigationToggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        navigationToggle.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   useEffect(() => {
     if (!wallet.loading && !wallet.connecting) {
       if (!wallet.address) router.replace("/login");
@@ -65,9 +71,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="mobile-header">
         <Logo />
         <button
+          ref={navigationToggle}
           className="button-icon"
           aria-label={open ? "Close navigation" : "Open navigation"}
           aria-expanded={open}
+          aria-controls="workspace-sidebar"
           onClick={() => setOpen(!open)}
         >
           {open ? <X /> : <Menu />}
@@ -80,7 +88,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           onClick={() => setOpen(false)}
         />
       )}
-      <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
+      <aside
+        id="workspace-sidebar"
+        className={`sidebar ${open ? "sidebar-open" : ""}`}
+      >
         <div className="sidebar-brand">
           <Logo />
           <span className="workspace-tag">PRODUCT PASSPORT</span>
@@ -133,6 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main id="main-content" className="app-main">
+        <ChainNotice />
         <div className="workspace-topbar">
           <span>
             <span className="status-dot" /> Wallet connected
@@ -141,12 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {shortWallet(wallet.profile.wallet_address)}
           </span>
         </div>
-        <div className="app-content">
-          {!["/wallet", "/exchange", "/liquidity"].includes(pathname) && (
-            <ProductChainStatus key={wallet.profile.id} />
-          )}
-          {children}
-        </div>
+        <div className="app-content">{children}</div>
         <footer className="app-footer">
           <span>{BRAND.name} · Product provenance, made clear.</span>
           <Link href="/verify">

@@ -6,25 +6,10 @@ import type {
   DashboardData,
   PublicProductDetail,
 } from "./types";
-export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      ...(options?.body && !(options.body instanceof FormData)
-        ? { "Content-Type": "application/json" }
-        : {}),
-      ...options?.headers,
-    },
-    cache: "no-store",
-  });
-  const payload = await response.json();
-  if (!response.ok)
-    throw new Error(
-      payload.error?.message || "Something went wrong. Please try again.",
-    );
-  return payload.data as T;
-}
-// The UI calls this gateway; a wallet/contract adapter can replace these HTTP operations.
+import { api } from "./api-http";
+import { performMutation } from "./chain-client";
+export { api } from "./api-http";
+// Chain mode signs wallet transactions; local-only mode remains available for isolated tests.
 export const productGateway = {
   dashboard: () => api<DashboardData>("/api/dashboard"),
   detail: (id: string) => api<ProductDetail>(`/api/products/${id}`),
@@ -34,26 +19,28 @@ export const productGateway = {
     warranty_duration_days: number;
     max_claims: number;
   }) =>
-    api<Product>("/api/products", {
-      method: "POST",
-      body: JSON.stringify(input),
+    performMutation<Product>("/api/products", input, {
+      kind: "register",
+      ...input,
     }),
   transfer: (id: string, to_wallet: string) =>
-    api<Transfer>(`/api/products/${id}/transfers`, {
-      method: "POST",
-      body: JSON.stringify({ to_wallet }),
-    }),
+    performMutation<Transfer>(
+      `/api/products/${id}/transfers`,
+      { to_wallet },
+      { kind: "transfer", product_id: id, to_wallet },
+    ),
   transferAction: (id: string, action: "accept" | "reject" | "cancel") =>
-    api<Transfer>(`/api/transfers/${id}/action`, {
-      method: "POST",
-      body: JSON.stringify({ action }),
-    }),
+    performMutation<Transfer>(
+      `/api/transfers/${id}/action`,
+      { action },
+      { kind: "transferAction", id, action },
+    ),
   claim: (input: {
     product_id: string;
     service_center_id: string;
     description: string;
   }) =>
-    api<Claim>("/api/claims", { method: "POST", body: JSON.stringify(input) }),
+    performMutation<Claim>("/api/claims", input, { kind: "claim", ...input }),
   claimAction: (
     id: string,
     input: {
@@ -62,9 +49,10 @@ export const productGateway = {
       resolution?: string;
     },
   ) =>
-    api<Claim>(`/api/claims/${id}/action`, {
-      method: "POST",
-      body: JSON.stringify(input),
+    performMutation<Claim>(`/api/claims/${id}/action`, input, {
+      kind: "claimAction",
+      id,
+      ...input,
     }),
   verify: (query: string) =>
     api<PublicProductDetail>(`/api/verify?query=${encodeURIComponent(query)}`),
