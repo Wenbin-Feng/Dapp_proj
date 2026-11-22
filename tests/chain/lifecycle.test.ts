@@ -107,7 +107,7 @@ async function login(role: number, granted = true): Promise<Actor> {
       session,
     ),
   );
-  expect(o.status).toBe(granted ? 200 : 403);
+  expect(o.status).toBe(200);
   return { wallet, session, profile: (await o.json()).data };
 }
 async function prepared(actor: Actor, command: object) {
@@ -171,8 +171,10 @@ afterAll(() => {
   closeChainProviders();
   provider.destroy();
 });
-it("requires administrator role grants even with a valid wallet login", async () => {
-  await login(1, false);
+it("self-enrolls a signed wallet while preserving contract role restrictions", async () => {
+  const newcomer = await login(1, false);
+  expect(await contract.roles(newcomer.wallet.address)).toBe(1n);
+  expect(newcomer.profile.role).toBe("manufacturer");
   await expect(
     contract.connect(customer.wallet).getFunction("grantRole")(
       buyer.wallet.address,
