@@ -67,7 +67,7 @@ export default async function Catalog({
           {products.map((product) => (
             <ProductCard
               key={product.id}
-              product={product}
+              product={{ ...product }}
               href={`/verify?q=${encodeURIComponent(product.serial_number)}`}
             />
           ))}
