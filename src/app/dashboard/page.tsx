@@ -15,7 +15,6 @@ import { AppShell } from "@/components/app-shell";
 import { useDashboard } from "@/components/data";
 import { useWallet } from "@/components/wallet-provider";
 import {
-  Badge,
   EmptyState,
   ErrorNotice,
   Loading,
@@ -131,7 +130,10 @@ export default function Dashboard() {
                     </h2>
                     <p>Every product, with its story attached.</p>
                   </div>
-                  <Badge>{products.length} products</Badge>
+                  <Link className="text-link" href="/catalog">
+                    Browse product catalog{" "}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
                 </div>
                 <div className="filter-bar">
                   <button
@@ -139,7 +141,7 @@ export default function Dashboard() {
                     onClick={() => setFilter("all")}
                     aria-pressed={filter === "all"}
                   >
-                    All products
+                    My products
                   </button>
                   <button
                     className={`filter-button ${filter === "active" ? "active" : ""}`}

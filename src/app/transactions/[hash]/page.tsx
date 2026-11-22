@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { PublicHeader, ErrorNotice, Loading } from "@/components/ui";
+import { PassportShell } from "@/components/app-shell";
+import { ErrorNotice, Loading } from "@/components/ui";
 import { api } from "@/lib/api-http";
 interface Receipt {
   hash: string;
@@ -34,9 +35,8 @@ export default function TransactionPage() {
     };
   }, [hash]);
   return (
-    <>
-      <PublicHeader />
-      <main id="main-content" className="transaction-page">
+    <PassportShell>
+      <div className="transaction-page">
         <h1>Transaction receipt</h1>
         <ErrorNotice error={error} />
         {!receipt && !error && <Loading text="Reading the local blockchain…" />}
@@ -71,7 +71,7 @@ export default function TransactionPage() {
             </p>
           </div>
         )}
-      </main>
-    </>
+      </div>
+    </PassportShell>
   );
 }

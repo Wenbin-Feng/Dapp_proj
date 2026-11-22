@@ -37,6 +37,18 @@ export interface Product {
   image_path: string | null;
   created_at: string;
 }
+export type CatalogProduct = Pick<
+  Product,
+  | "id"
+  | "serial_number"
+  | "model"
+  | "manufacturer_name"
+  | "image_path"
+  | "warranty_started_at"
+  | "warranty_expires_at"
+  | "claims_used"
+  | "max_claims"
+>;
 export type TransferStatus = "pending" | "accepted" | "rejected" | "cancelled";
 export interface Transfer {
   id: string;

@@ -23,7 +23,7 @@ test("public site, wallet guidance and unauthenticated route protection", async 
   ).toContainText(/install.*metamask/i);
   await page.goto("/verify");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Know the product",
+    "Verify a product",
   );
 });
 test("mobile public page has no horizontal overflow", async ({ page }) => {

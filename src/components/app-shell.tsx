@@ -19,11 +19,12 @@ import { useWallet } from "@/components/wallet-provider";
 import { shortWallet } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
-import { Loading, Logo } from "./ui";
+import { Loading, Logo, PublicHeader } from "./ui";
 import { ChainNotice } from "./chain-notice";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/catalog", label: "Product catalog", icon: Box },
   { href: "/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/claims", label: "Warranty claims", icon: ShieldCheck },
   { href: "/verify", label: "Verify a product", icon: ScanLine },
@@ -172,5 +173,18 @@ function PublicHeaderFallback() {
         Verify a product
       </Link>
     </div>
+  );
+}
+
+export function PassportShell({ children }: { children: ReactNode }) {
+  const { profile } = useWallet();
+  if (profile) return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <PublicHeader />
+      <main id="main-content" className="verify-main">
+        {children}
+      </main>
+    </>
   );
 }
