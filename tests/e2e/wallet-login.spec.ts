@@ -73,6 +73,7 @@ async function walletBrowser(browser: Browser, failure?: number) {
     ({ address, code, chain }) => {
       let selectedChain = chain ? "0x1" : "0x7a69",
         networkAdded = false;
+      let accountPermissionGranted = code !== 4100;
       const listeners = new Map<string, Set<(accounts: string[]) => void>>();
       const provider = {
         isMetaMask: true,
@@ -83,9 +84,17 @@ async function walletBrowser(browser: Browser, failure?: number) {
           method: string;
           params?: string[];
         }) {
+          if (method === "wallet_requestPermissions" && code === 4100) {
+            if (JSON.stringify(params) !== JSON.stringify([{ eth_accounts: {} }]))
+              throw new Error("Unexpected permission request");
+            accountPermissionGranted = true;
+            return [{ parentCapability: "eth_accounts" }];
+          }
+          if (method === "personal_sign" && !accountPermissionGranted)
+            throw { code: 4100, message: "Unauthorized account on this network" };
           if (method === "personal_sign" && code === -32603)
             throw { code, message: "MetaMask could not process the signing request." };
-          if (method === "eth_requestAccounts" && code && code !== -32603)
+          if (method === "eth_requestAccounts" && code && code !== -32603 && code !== 4100)
             throw Object.assign(new Error("Test wallet request rejected"), {
               code,
             });
@@ -218,6 +227,20 @@ for (const [code, message] of [
       await s.context.close();
     }
   });
+test("a wallet can review its connection after signing reports missing account permission", async ({ browser }) => {
+  const { page, context } = await walletBrowser(browser, 4100);
+  try {
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Continue with MetaMask" }).click();
+    await expect(page.getByText(/MetaMask did not authorize this account/)).toBeVisible();
+    expect((await context.request.get(ORIGIN + "/api/me")).status()).toBe(401);
+    await page.getByRole("button", { name: "Review MetaMask connection" }).click();
+    await expect(page).toHaveURL(/onboarding/);
+  } finally {
+    await context.close();
+  }
+});
+
 test("the same wallet signs in again with its saved role after logout", async ({ browser }) => {
   const s = await walletBrowser(browser);
   try {
