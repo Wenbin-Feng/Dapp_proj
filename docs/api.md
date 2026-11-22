@@ -2,7 +2,7 @@
 
 ## Ethereum mode (`CHAIN_ENABLED=1`)
 
-The business mutation endpoints listed below are the legacy SQLite-only interface and return `409 WALLET_TRANSACTION_REQUIRED` in Ethereum mode. Reads, profile editing and image uploads remain HTTP operations. Onboarding additionally requires a matching immutable on-chain role grant. See [the Chinese chain guide](blockchain.md).
+The business mutation endpoints listed below are the legacy SQLite-only interface and return `409 WALLET_TRANSACTION_REQUIRED` in Ethereum mode. Reads, profile editing and image uploads remain HTTP operations. Onboarding grants the chosen role. Authenticated PATCH /api/me accepts a role change for the current wallet and synchronizes it with the contract. See [the Chinese chain guide](blockchain.md).
 
 | Endpoint | Purpose |
 | --- | --- |

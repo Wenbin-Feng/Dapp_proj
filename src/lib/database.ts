@@ -112,7 +112,14 @@ export class LocalDatabase {
       this.connection.close();
       throw new Error("Database schema is newer than this application.");
     }
-    this.transaction(() => this.connection.exec(schema));
+    this.transaction(() => {
+      this.connection.exec(schema);
+      if (!this.all<{name: string}>("PRAGMA table_info(transfers)").some(c => c.name === "retail_sale")) {
+        this.connection.exec(`ALTER TABLE transfers ADD COLUMN retail_sale INTEGER NOT NULL DEFAULT 0;
+          UPDATE transfers SET retail_sale=1 WHERE status='pending' AND from_user_id IN
+          (SELECT id FROM profiles WHERE role='retailer') AND to_user_id IN (SELECT id FROM profiles WHERE role='customer');`);
+      }
+    });
   }
   get<T>(sql: string, ...parameters: SQLInputValue[]): T | undefined {
     return this.connection.prepare(sql).get(...parameters) as T | undefined;
@@ -204,19 +211,21 @@ export class LocalDatabase {
       return this.profile(id)!;
     });
   }
-  updateProfile(id: string, name: string, organization: string | null) {
+  updateProfile(id: string, name: string, organization: string | null, selectedRole?: Role) {
     return this.transaction(() => {
       const profile = this.profile(id);
       if (!profile) forbidden("Complete your profile first.");
+      const role = selectedRole ?? profile.role;
       const org =
-        profile.role === "customer"
+        role === "customer"
           ? organization?.trim() || null
           : text(organization, 120, "Organization name");
       if (org && org.length > 120) invalid("Organization name is too long.");
       this.run(
-        "UPDATE profiles SET display_name=?,organization_name=? WHERE id=?",
+        "UPDATE profiles SET display_name=?,organization_name=?,role=? WHERE id=?",
         text(name, 80, "Display name"),
         org,
+        role,
         id,
       );
       return this.profile(id)!;
@@ -323,7 +332,7 @@ export class LocalDatabase {
       }
       const id = randomUUID();
       this.run(
-        "INSERT INTO transfers VALUES(?,?,?,?,?,?,'pending',?,NULL)",
+        "INSERT INTO transfers(id,product_id,from_user_id,to_user_id,from_wallet,to_wallet,status,created_at,resolved_at,retail_sale) VALUES(?,?,?,?,?,?,'pending',?,NULL,?)",
         id,
         productId,
         actor,
@@ -331,6 +340,7 @@ export class LocalDatabase {
         from.wallet_address,
         to.wallet_address,
         this.now(),
+        Number(from.role === "retailer" && to.role === "customer"),
       );
       return this.get<Transfer>("SELECT * FROM transfers WHERE id=?", id)!;
     });
@@ -342,7 +352,7 @@ export class LocalDatabase {
   ) {
     requireDatabaseMode();
     return this.transaction(() => {
-      const t = this.get<Transfer>("SELECT * FROM transfers WHERE id=?", id);
+      const t = this.get<Transfer & {retail_sale: number}>("SELECT * FROM transfers WHERE id=?", id);
       if (!t) throw new ApiError(404, "NOT_FOUND", "Transfer not found.");
       if (!["accept", "reject", "cancel"].includes(action))
         invalid("Invalid transfer action.");
@@ -370,8 +380,7 @@ export class LocalDatabase {
       if (action === "accept") {
         const starts =
           !p.warranty_started_at &&
-          this.profile(t.from_user_id)!.role === "retailer" &&
-          this.profile(t.to_user_id)!.role === "customer";
+          t.retail_sale === 1;
         this.run(
           "UPDATE products SET owner_id=?,owner_wallet=?,warranty_started_at=?,warranty_expires_at=? WHERE id=?",
           t.to_user_id,

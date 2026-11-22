@@ -157,8 +157,7 @@ export default function Onboarding() {
               </div>
             </fieldset>
             <div className="notice notice-info">
-              {descriptions[role]} Your role is fixed once this profile is
-              saved.
+              {descriptions[role]} You can change your role later in My profile.
             </div>
             <div className="form-grid">
               <div className="field">

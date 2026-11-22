@@ -19,6 +19,7 @@ import {
   chainEnabled,
   chainManifest,
   type ChainManifest,
+  contractAtBlock,
 } from "./chain-config";
 import {
   applyChainEvent,
@@ -93,11 +94,12 @@ async function indexChain(db: LocalDatabase) {
   initProjection(db);
   let cursor = db.get<Cursor>("SELECT * FROM chain_state WHERE singleton=1");
   if (!cursor) {
-    const previous = await provider.getBlock(d.blockNumber - 1);
+    const first = d.predecessor?.blockNumber ?? d.blockNumber;
+    const previous = await provider.getBlock(first - 1);
     db.run(
       "INSERT OR IGNORE INTO chain_state VALUES(1,?,?,?)",
       d.deploymentId,
-      d.blockNumber - 1,
+      first - 1,
       previous!.hash!,
     );
     cursor = db.get<Cursor>("SELECT * FROM chain_state WHERE singleton=1")!;
@@ -118,9 +120,9 @@ async function indexChain(db: LocalDatabase) {
   const head = await provider.getBlockNumber();
   while (cursor.last_block < head) {
     const start = cursor.last_block,
-      end = Math.min(head, start + 250);
+      end = Math.min(head, start + 250, d.predecessor && start + 1 < d.blockNumber ? d.blockNumber - 1 : head);
     const logs = await provider.getLogs({
-      address: d.address,
+      address: contractAtBlock(d, end),
       fromBlock: start + 1,
       toBlock: end,
     });
@@ -184,7 +186,7 @@ export async function syncChain(db: LocalDatabase) {
   }
 }
 // The administrator signer is available only on the server's loopback demo RPC.
-export async function registerWalletRole(wallet: string, role: Role) {
+export async function registerWalletRole(wallet: string, role: Role, expected?: Role) {
   const previous = globalChain.roleRegistration ?? Promise.resolve();
   const pending = previous.catch(() => {}).then(async () => {
     const deployment = chainManifest();
@@ -193,11 +195,15 @@ export async function registerWalletRole(wallet: string, role: Role) {
     const selected = roleNames.indexOf(role);
     const current = Number(await contract.roles(wallet));
     if (current === selected) return;
-    if (current !== 0) {
+    if (current !== 0 && expected === undefined) {
       throw new ApiError(409, "ROLE_ALREADY_SET",
         `This wallet is registered as ${roleNames[current]}. Select its registered role to continue.`);
     }
     const admin = await provider.getSigner(deployment.administrator);
+    if (expected !== undefined) {
+      await (await contract.connect(admin).getFunction("changeRole")(wallet, roleNames.indexOf(expected), selected)).wait();
+      return;
+    }
     // Fund only the first enrollment on the private demo chain. A retry after
     // funding but before the grant sees the existing balance.
     if ((await provider.getBalance(wallet)) === 0n) {
@@ -522,7 +528,7 @@ export async function completeTransaction(
     const tx = await chainProvider(d).getTransaction(hash);
     if (
       !tx ||
-      tx.to?.toLowerCase() !== d.address.toLowerCase() ||
+      tx.to?.toLowerCase() !== contractAtBlock(d, receipt.blockNumber).toLowerCase() ||
       tx.from.toLowerCase() !== intent.wallet ||
       tx.data.toLowerCase() !== intent.calldata.toLowerCase() ||
       tx.value !== 0n

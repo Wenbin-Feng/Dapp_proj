@@ -1,3 +1,4 @@
+import { Transaction } from "ethers";
 import { chainManifest } from "@/lib/chain-config";
 import { readJson } from "@/lib/http";
 import { z } from "zod";
@@ -26,7 +27,11 @@ export async function POST(request: Request) {
     const items = Array.isArray(body) ? body : [body];
     if (items.some(v => !methods.has(v.method)))
       return Response.json({ jsonrpc: "2.0", id: Array.isArray(body) ? null : body.id, error: { code: -32601, message: "Method unavailable" } }, { headers });
-    const response = await fetch(chainManifest().rpcUrl, {
+    const deployment = chainManifest();
+    if (deployment.predecessor && items.some(item => item.method === "eth_sendRawTransaction" &&
+      Transaction.from(String(item.params?.[0])).to?.toLowerCase() === deployment.predecessor!.address.toLowerCase()))
+      return Response.json({ jsonrpc: "2.0", id: Array.isArray(body) ? null : body.id, error: { code: -32000, message: "The passport contract was updated. Refresh and prepare the transaction again." } }, { headers });
+    const response = await fetch(deployment.rpcUrl, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body), signal: AbortSignal.timeout(10000), cache: "no-store"
     });

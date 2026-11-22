@@ -73,7 +73,7 @@ it("enforces product roles, limits, trim and case-insensitive Unicode serial uni
   ).toThrow("terms");
   expect(db.publicProduct("åbc-001").id).toBe(p.id);
 });
-it("keeps role/wallet fixed at repeat onboarding and profile edits", () => {
+it("keeps wallet binding and changes role only on explicit profile edits", () => {
   expect(
     db.onboard(ids[2], wallets[2], {
       role: "manufacturer",
@@ -87,6 +87,7 @@ it("keeps role/wallet fixed at repeat onboarding and profile edits", () => {
   expect(db.updateProfile(ids[2], "Updated", null).wallet_address).toBe(
     wallets[2],
   );
+  expect(db.updateProfile(ids[2], "Updated", "Workshop", "service_center").role).toBe("service_center");
   expect(() => db.updateProfile(ids[0], "Maker", null)).toThrow("Organization");
 });
 it("requires current owner, registered receiver and the proper transfer role", () => {

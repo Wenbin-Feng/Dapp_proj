@@ -1,3 +1,4 @@
+import { PATCH as updateProfile } from "../../src/app/api/me/route";
 import { beforeAll, afterAll, it, expect, vi } from "vitest";
 import {
   Contract,
@@ -182,6 +183,18 @@ it("self-enrolls a signed wallet while preserving contract role restrictions", a
     ),
   ).rejects.toThrow();
   await expect(contract.grantRole(maker.wallet.address, 3)).rejects.toThrow();
+});
+it("switches an existing session between all four workspaces and enforces the active contract role", async () => {
+  const actor = await login(3, false);
+  for (const [role, number] of [["manufacturer", 1], ["retailer", 2], ["service_center", 4], ["customer", 3]] as const) {
+    const response = await updateProfile(req("me", "PATCH", {role, organization_name: "Role demo"}, actor.session));
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.role).toBe(role);
+    expect(await contract.roles(actor.wallet.address)).toBe(BigInt(number));
+    const form = { kind: "register", serial_number: "ROLE-TEST", model: "Switch test", warranty_duration_days: 365, max_claims: 1 };
+    const r = await prepare(req("chain/prepare", "POST", form, actor.session));
+    expect(r.status === 200).toBe(role === "manufacturer");
+  }
 });
 it("registers through a real signed transaction; receipt and SQLite agree", async () => {
   product = await perform<Product>(maker, {

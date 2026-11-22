@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { route, ApiError } from "@/lib/http";
-import { chainManifest, requireChainMode } from "@/lib/chain-config";
+import { chainManifest, contractAtBlock, requireChainMode } from "@/lib/chain-config";
 import { chainProvider, chainInterface, chainStatus } from "@/lib/chain-server";
 export const GET = route(async (request) => {
   requireChainMode();
@@ -20,7 +20,8 @@ export const GET = route(async (request) => {
   const d = chainManifest(),
     provider = chainProvider(d),
     receipt = await provider.getTransactionReceipt(parsed.data);
-  if (!receipt || receipt.to?.toLowerCase() !== d.address.toLowerCase())
+  const address = receipt && contractAtBlock(d, receipt.blockNumber);
+  if (!receipt || !address || receipt.to?.toLowerCase() !== address.toLowerCase())
     throw new ApiError(
       404,
       "NOT_FOUND",
@@ -31,13 +32,13 @@ export const GET = route(async (request) => {
       hash: receipt.hash,
       status: receipt.status === 1 ? "confirmed" : "reverted",
       chain_id: d.chainId,
-      contract: d.address,
+      contract: address,
       from: receipt.from,
       block_number: receipt.blockNumber,
       block_hash: receipt.blockHash,
       gas_used: receipt.gasUsed.toString(),
       events: receipt.logs
-        .filter((l) => l.address.toLowerCase() === d.address.toLowerCase())
+        .filter((l) => l.address.toLowerCase() === address.toLowerCase())
         .map((l) => chainInterface.parseLog(l)?.name)
         .filter(Boolean),
     },

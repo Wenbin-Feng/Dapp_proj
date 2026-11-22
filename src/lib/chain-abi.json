@@ -277,6 +277,29 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "expected",
+        "type": "uint8"
+      },
+      {
+        "internalType": "enum ProductPassport.Role",
+        "name": "selected",
+        "type": "uint8"
+      }
+    ],
+    "name": "changeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "deploymentId",
     "outputs": [
