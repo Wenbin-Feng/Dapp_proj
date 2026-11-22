@@ -15,6 +15,7 @@ const manifestSchema = z.object({
   blockHash: z.string(),
   databasePath: z.string().min(1),
   administrator: z.string(),
+  predecessor: z.object({ address: z.string().regex(/^0x[0-9a-fA-F]{40}$/), blockNumber: z.number().int().positive() }).optional(),
 });
 export type ChainManifest = z.infer<typeof manifestSchema>;
 export function chainManifest(): ChainManifest {
@@ -54,4 +55,9 @@ export function requireDatabaseMode() {
       "WALLET_TRANSACTION_REQUIRED",
       "Confirm this operation as a wallet transaction. Direct database mutations are disabled in chain mode.",
     );
+}
+
+
+export function contractAtBlock(d: ChainManifest, block: number) {
+  return d.predecessor && block < d.blockNumber ? d.predecessor.address : d.address;
 }

@@ -132,6 +132,7 @@ export function applyChainEvent(
       a.wallet.toLowerCase(),
       Number(a.role),
     );
+    db.run("UPDATE profiles SET role=? WHERE wallet_address=?", roleNames[Number(a.role)], a.wallet.toLowerCase());
     return;
   }
   if (event.name === "OperationRecorded") {
@@ -178,7 +179,7 @@ export function applyChainEvent(
       from = profileFor(db, a.from, now),
       to = profileFor(db, a.to, now);
     db.run(
-      "INSERT INTO transfers VALUES(?,?,?,?,?,?,'pending',?,NULL)",
+      "INSERT INTO transfers(id,product_id,from_user_id,to_user_id,from_wallet,to_wallet,status,created_at,resolved_at) VALUES(?,?,?,?,?,?,'pending',?,NULL)",
       id,
       pid,
       from.id,

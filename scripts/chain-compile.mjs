@@ -3,6 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 const input = {
   language: "Solidity",
   sources: {
+    "SuccessorPassport.sol": { content: await readFile("contracts/SuccessorPassport.sol", "utf8") },
     "ProductPassport.sol": {
       content: await readFile("contracts/ProductPassport.sol", "utf8"),
     },
@@ -35,6 +36,10 @@ await writeFile(
     2,
   ) + "\n",
 );
+const successor = output.contracts["SuccessorPassport.sol"].SuccessorPassport;
+await writeFile("chain/artifacts/SuccessorPassport.json", JSON.stringify({
+  abi: successor.abi, bytecode: "0x" + successor.evm.bytecode.object,
+}));
 await writeFile(
   "src/lib/chain-abi.json",
   JSON.stringify(contract.abi, null, 2) + "\n",
